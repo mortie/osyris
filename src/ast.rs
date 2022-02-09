@@ -4,7 +4,7 @@ use std::rc::Rc;
 pub enum Expression {
     String(String),
     Number(i32),
-    Name(String),
+    Lookup(String),
     Call(Vec<Expression>),
     Quote(Rc<Vec<Expression>>),
 }

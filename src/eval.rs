@@ -3,6 +3,9 @@ use super::ast;
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::fmt;
+use std::cell::RefCell;
+
+pub type FuncVal = &'static dyn Fn(&Vec<ValRef>, &RefCell<Scope>) -> ValRef;
 
 pub enum ValRef {
     None,
@@ -10,7 +13,7 @@ pub enum ValRef {
     String(Rc<String>),
     Quote(Rc<Vec<ast::Expression>>),
     List(Rc<Vec<ValRef>>),
-    Func(&'static dyn Fn(&Vec<ValRef>) -> ValRef),
+    Func(FuncVal),
 }
 
 impl Clone for ValRef {
@@ -50,12 +53,12 @@ impl fmt::Display for ValRef {
 }
 
 pub struct Scope {
-    parent: Option<Rc<Scope>>,
+    parent: Option<Rc<RefCell<Scope>>>,
     map: HashMap<String, ValRef>,
 }
 
 impl Scope {
-    pub fn new(parent: Option<Rc<Scope>>) -> Self {
+    pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Self {
         Self {
             parent,
             map: HashMap::new(),
@@ -66,7 +69,7 @@ impl Scope {
         match self.map.get(name) {
             Some(r) => Ok(r.clone()),
             None => match &self.parent {
-                Some(parent) => parent.lookup(name),
+                Some(parent) => parent.as_ref().borrow().lookup(name),
                 None => Err(format!("Variable '{}' doesn't exist", name)),
             }
         }
@@ -77,7 +80,7 @@ impl Scope {
     }
 }
 
-fn call(exprs: &Vec<ast::Expression>, scope: &Scope) -> Result<ValRef, String> {
+fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if exprs.len() < 1 {
         return Err("Call list has no elements".to_string());
     }
@@ -90,11 +93,12 @@ fn call(exprs: &Vec<ast::Expression>, scope: &Scope) -> Result<ValRef, String> {
 
     let func = eval(&exprs[0], scope)?;
     match func {
-        ValRef::Func(func) => Ok(func(&args)),
+        ValRef::Func(func) => Ok(func(&args, scope.as_ref())),
         ValRef::Quote(exprs) => {
+            let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
             let mut retval = ValRef::None;
             for expr in exprs.as_ref() {
-                retval = eval(expr, scope)?;
+                retval = eval(expr, &s)?;
             }
 
             Ok(retval)
@@ -103,11 +107,11 @@ fn call(exprs: &Vec<ast::Expression>, scope: &Scope) -> Result<ValRef, String> {
     }
 }
 
-pub fn eval(expr: &ast::Expression, scope: &Scope) -> Result<ValRef, String> {
+pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match expr {
         ast::Expression::String(s) => Ok(ValRef::String(Rc::new(s.clone()))),
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
-        ast::Expression::Name(name) => scope.lookup(name),
+        ast::Expression::Lookup(name) => scope.as_ref().borrow().lookup(name),
         ast::Expression::Call(exprs) => call(exprs, scope),
         ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
     }

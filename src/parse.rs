@@ -78,6 +78,19 @@ fn skip_space<'a>(r: &mut Reader<'a>) {
     }
 }
 
+fn read_name<'a>(r: &mut Reader<'a>) -> Result<String, ParseError> {
+    let start = r.idx;
+    while !r.eof() && !is_separator(r.peek()) {
+        r.consume();
+    }
+
+    let s = match std::str::from_utf8(&r.string[start..r.idx]) {
+        Ok(s) => s,
+        Err(err) => return Err(r.err(format!("Invalid UTF-8: {}", err))),
+    };
+    Ok(s.to_string())
+}
+
 fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '"'
 
@@ -160,24 +173,19 @@ fn parse_parenthesized<'a>(r: &mut Reader<'a>) -> Result<Vec<ast::Expression>, P
 
 fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '\''
-    Ok(ast::Expression::Quote(Rc::new(parse_parenthesized(r)?)))
+    if r.peek() == b'(' {
+        Ok(ast::Expression::Quote(Rc::new(parse_parenthesized(r)?)))
+    } else {
+        Ok(ast::Expression::String(read_name(r)?))
+    }
 }
 
 fn parse_call<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     Ok(ast::Expression::Call(parse_parenthesized(r)?))
 }
 
-fn parse_name<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
-    let start = r.idx;
-    while !r.eof() && !is_separator(r.peek()) {
-        r.consume();
-    }
-
-    let s = match std::str::from_utf8(&r.string[start..r.idx]) {
-        Ok(s) => s,
-        Err(err) => return Err(r.err(format!("Invalid UTF-8: {}", err))),
-    };
-    Ok(ast::Expression::Name(s.to_string()))
+fn parse_lookup<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+    Ok(ast::Expression::Lookup(read_name(r)?))
 }
 
 pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseError> {
@@ -197,6 +205,6 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
     } else if ch == b'(' {
         Ok(Some(parse_call(r)?))
     } else {
-        Ok(Some(parse_name(r)?))
+        Ok(Some(parse_lookup(r)?))
     }
 }

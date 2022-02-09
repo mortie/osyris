@@ -5,6 +5,8 @@ mod stdlib;
 
 use std::env;
 use std::fs;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 fn main() {
     let mut args = env::args();
@@ -28,7 +30,7 @@ fn main() {
 
     let mut reader = parse::Reader::new(&string.as_bytes());
 
-    let scope = stdlib::new(None);
+    let scope = Rc::new(RefCell::new(stdlib::new(None)));
     loop {
         let expr = match parse::parse(&mut reader) {
             Ok(expr) => match expr {

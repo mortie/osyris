@@ -1,8 +1,9 @@
-use super::eval::{ValRef, Scope};
+use super::eval::{ValRef, Scope, FuncVal};
 
 use std::rc::Rc;
+use std::cell::RefCell;
 
-fn lib_print(args: &Vec<ValRef>) -> ValRef {
+fn lib_print(args: &Vec<ValRef>, _: &RefCell<Scope>) -> ValRef {
     for idx in 0..args.len() {
         if idx != 0 {
             print!(" ");
@@ -20,7 +21,7 @@ fn to_num(arg: &ValRef) -> i32 {
     }
 }
 
-fn lib_add(args: &Vec<ValRef>) -> ValRef {
+fn lib_add(args: &Vec<ValRef>, _: &RefCell<Scope>) -> ValRef {
     if args.len() < 1 {
         return ValRef::Number(0);
     }
@@ -33,7 +34,7 @@ fn lib_add(args: &Vec<ValRef>) -> ValRef {
     ValRef::Number(num)
 }
 
-fn lib_sub(args: &Vec<ValRef>) -> ValRef {
+fn lib_sub(args: &Vec<ValRef>, _: &RefCell<Scope>) -> ValRef {
     if args.len() < 1 {
         return ValRef::Number(0);
     }
@@ -46,7 +47,7 @@ fn lib_sub(args: &Vec<ValRef>) -> ValRef {
     ValRef::Number(num)
 }
 
-fn lib_mul(args: &Vec<ValRef>) -> ValRef {
+fn lib_mul(args: &Vec<ValRef>, _: &RefCell<Scope>) -> ValRef {
     if args.len() < 1 {
         return ValRef::Number(0);
     }
@@ -59,7 +60,7 @@ fn lib_mul(args: &Vec<ValRef>) -> ValRef {
     ValRef::Number(num)
 }
 
-fn lib_div(args: &Vec<ValRef>) -> ValRef {
+fn lib_div(args: &Vec<ValRef>, _: &RefCell<Scope>) -> ValRef {
     if args.len() < 1 {
         return ValRef::Number(0);
     }
@@ -72,10 +73,24 @@ fn lib_div(args: &Vec<ValRef>) -> ValRef {
     ValRef::Number(num)
 }
 
-pub fn new(parent: Option<Rc<Scope>>) -> Scope {
+fn lib_set(args: &Vec<ValRef>, scope: &RefCell<Scope>) -> ValRef {
+    if args.len() != 2 {
+        return ValRef::None;
+    }
+
+    let name = match &args[0] {
+        ValRef::String(s) => s.as_ref(),
+        _ => return ValRef::None,
+    };
+
+    scope.borrow_mut().insert(name.clone(), args[1].clone());
+    args[1].clone()
+}
+
+pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     let mut scope = Scope::new(parent);
 
-    let mut put = |name: &str, func: &'static dyn Fn(&Vec<ValRef>) -> ValRef | {
+    let mut put = |name: &str, func: FuncVal| {
         scope.insert(name.to_string(), ValRef::Func(func));
     };
 
@@ -84,6 +99,7 @@ pub fn new(parent: Option<Rc<Scope>>) -> Scope {
     put("-", &lib_sub);
     put("*", &lib_mul);
     put("/", &lib_div);
+    put("set", &lib_set);
 
     scope
 }
