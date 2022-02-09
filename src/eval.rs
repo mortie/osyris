@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::cell::RefCell;
 
-pub type FuncVal = &'static dyn Fn(&Vec<ValRef>, &RefCell<Scope>) -> ValRef;
+pub type FuncVal = &'static dyn Fn(&Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
 pub enum ValRef {
     None,
@@ -80,7 +80,7 @@ impl Scope {
     }
 }
 
-fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if exprs.len() < 1 {
         return Err("Call list has no elements".to_string());
     }
@@ -93,10 +93,11 @@ fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValR
 
     let func = eval(&exprs[0], scope)?;
     match func {
-        ValRef::Func(func) => Ok(func(&args, scope.as_ref())),
+        ValRef::Func(func) => func(&args, scope),
         ValRef::Quote(exprs) => {
             let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
             s.borrow_mut().insert("$".to_string(), ValRef::List(Rc::new(args)));
+
             let mut retval = ValRef::None;
             for expr in exprs.as_ref() {
                 retval = eval(expr, &s)?;
