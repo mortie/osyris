@@ -69,7 +69,7 @@ impl Scope {
         match self.map.get(name) {
             Some(r) => Ok(r.clone()),
             None => match &self.parent {
-                Some(parent) => parent.as_ref().borrow().lookup(name),
+                Some(parent) => parent.borrow().lookup(name),
                 None => Err(format!("Variable '{}' doesn't exist", name)),
             }
         }
@@ -96,12 +96,29 @@ fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValR
         ValRef::Func(func) => Ok(func(&args, scope.as_ref())),
         ValRef::Quote(exprs) => {
             let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
+            s.borrow_mut().insert("$".to_string(), ValRef::List(Rc::new(args)));
             let mut retval = ValRef::None;
             for expr in exprs.as_ref() {
                 retval = eval(expr, &s)?;
             }
 
             Ok(retval)
+        }
+        ValRef::List(list) => {
+            if args.len() != 1 {
+                return Err(format!("Array lookup requires exactly 1 argument, got {}", args.len()));
+            }
+
+            let idx = match args[0] {
+                ValRef::Number(idx) => idx,
+                _ => return Err("Attempt to index with non-number".to_string()),
+            };
+
+            if idx as usize > list.len() || idx < 0 {
+                Ok(ValRef::None)
+            } else {
+                Ok(list.as_ref()[idx as usize].clone())
+            }
         }
         _ => Err("Attempt to call non-function".to_string()),
     }
@@ -111,7 +128,7 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
     match expr {
         ast::Expression::String(s) => Ok(ValRef::String(Rc::new(s.clone()))),
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
-        ast::Expression::Lookup(name) => scope.as_ref().borrow().lookup(name),
+        ast::Expression::Lookup(name) => scope.borrow().lookup(name),
         ast::Expression::Call(exprs) => call(exprs, scope),
         ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
     }
