@@ -70,8 +70,19 @@ fn is_separator(ch: u8) -> bool {
 
 fn skip_space<'a>(r: &mut Reader<'a>) {
     while !r.eof() {
-        if is_space(r.peek()) {
+        let ch = r.peek();
+        if is_space(ch) {
             r.consume();
+        } else if ch == b';' {
+            r.consume();
+            while !r.eof() {
+                if r.peek() == b'\n' {
+                    r.consume();
+                    break;
+                } else {
+                    r.consume();
+                }
+            }
         } else {
             return;
         }
