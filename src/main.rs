@@ -42,11 +42,11 @@ fn main() {
         };
 
         match eval::eval(&expr, &scope) {
-            Ok(val) => println!("{}", val),
             Err(err) => {
                 println!("Error: {}", err);
                 return;
             }
+            _ => ()
         }
     }
 }
