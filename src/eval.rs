@@ -161,9 +161,9 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
     }?;
 
     loop {
-        match &val {
-            ValRef::Lazy(lazy) => val = resolve_lazy(lazy, scope)?,
-            ValRef::ProtectedLazy(lazy) => return Ok(ValRef::Lazy(lazy.clone())),
+        match val {
+            ValRef::Lazy(lazy) => val = resolve_lazy(&lazy, scope)?,
+            ValRef::ProtectedLazy(lazy) => return Ok(ValRef::Lazy(lazy)),
             _ => return Ok(val),
         }
     }

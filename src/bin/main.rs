@@ -1,8 +1,4 @@
-mod ast;
-mod parse;
-mod eval;
-mod stdlib;
-
+use glisp::{parse, eval, stdlib};
 use std::env;
 use std::fs;
 use std::rc::Rc;
