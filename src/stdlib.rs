@@ -158,7 +158,7 @@ fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stri
     };
 
     scope.borrow_mut().insert(name.clone(), args[1].clone());
-    Ok(args[1].clone())
+    Ok(ValRef::None)
 }
 
 fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -190,6 +190,14 @@ fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::List(Rc::new(args)))
 }
 
+fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 1 {
+        return Err("'lazy' requires 1 argument".to_string());
+    }
+
+    Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
+}
+
 pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     let mut scope = Scope::new(parent);
 
@@ -211,6 +219,7 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     put("set", &lib_set);
     put("if", &lib_if);
     put("list", &lib_list);
+    put("lazy", &lib_lazy);
 
     scope
 }

@@ -14,6 +14,8 @@ pub enum ValRef {
     Quote(Rc<Vec<ast::Expression>>),
     List(Rc<Vec<ValRef>>),
     Func(FuncVal),
+    Lazy(Rc<ValRef>),
+    ProtectedLazy(Rc<ValRef>),
 }
 
 impl Clone for ValRef {
@@ -25,6 +27,8 @@ impl Clone for ValRef {
             Self::Quote(q) => Self::Quote(q.clone()),
             Self::List(l) => Self::List(l.clone()),
             Self::Func(f) => Self::Func(*f),
+            Self::Lazy(val) => Self::Lazy(val.clone()),
+            Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
         }
     }
 }
@@ -48,6 +52,8 @@ impl fmt::Display for ValRef {
                 write!(f, "]")
             }
             Self::Func(_) => write!(f, "(func)"),
+            Self::Lazy(val) => write!(f, "(lazy {})", val),
+            Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
         }
     }
 }
@@ -125,12 +131,40 @@ pub fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<
     }
 }
 
+fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    match lazy {
+        ValRef::Func(func) => {
+            let args: Vec<ValRef> = Vec::new();
+            func(args, scope)
+        }
+        ValRef::Quote(exprs) => {
+            let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
+
+            let mut retval = ValRef::None;
+            for expr in exprs.as_ref() {
+                retval = eval(expr, &s)?;
+            }
+
+            Ok(retval)
+        }
+        _ => Ok(lazy.clone()),
+    }
+}
+
 pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    match expr {
+    let mut val = match expr {
         ast::Expression::String(s) => Ok(ValRef::String(Rc::new(s.clone()))),
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
         ast::Expression::Lookup(name) => scope.borrow().lookup(name),
         ast::Expression::Call(exprs) => call(exprs, scope),
         ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
+    }?;
+
+    loop {
+        match &val {
+            ValRef::Lazy(lazy) => val = resolve_lazy(lazy, scope)?,
+            ValRef::ProtectedLazy(lazy) => return Ok(ValRef::Lazy(lazy.clone())),
+            _ => return Ok(val),
+        }
     }
 }
