@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::cell::RefCell;
 
-pub type FuncVal = &'static dyn Fn(&Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
+pub type FuncVal = &'static dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
 pub enum ValRef {
     None,
@@ -93,7 +93,7 @@ pub fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<
 
     let func = eval(&exprs[0], scope)?;
     match func {
-        ValRef::Func(func) => func(&args, scope),
+        ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => {
             let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
             s.borrow_mut().insert("$".to_string(), ValRef::List(Rc::new(args)));
@@ -121,7 +121,7 @@ pub fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<
                 Ok(list.as_ref()[idx as usize].clone())
             }
         }
-        _ => Err("Attempt to call non-function".to_string()),
+        _ => Err(format!("Attempt to call non-function {}", func))
     }
 }
 

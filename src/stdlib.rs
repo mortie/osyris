@@ -3,7 +3,7 @@ use super::eval::{ValRef, Scope, FuncVal, call};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-fn lib_print(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() {
         if idx != 0 {
             print!(" ");
@@ -33,7 +33,7 @@ fn equals(arg1: &ValRef, arg2: &ValRef) -> bool {
     }
 }
 
-fn lib_add(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0));
     }
@@ -46,7 +46,7 @@ fn lib_add(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::Number(num))
 }
 
-fn lib_sub(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0));
     }
@@ -59,7 +59,7 @@ fn lib_sub(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::Number(num))
 }
 
-fn lib_mul(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0));
     }
@@ -72,7 +72,7 @@ fn lib_mul(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::Number(num))
 }
 
-fn lib_div(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0));
     }
@@ -85,7 +85,7 @@ fn lib_div(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::Number(num))
 }
 
-fn lib_equals(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() <= 1 {
         return Ok(ValRef::Number(1));
     }
@@ -99,7 +99,7 @@ fn lib_equals(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stri
     Ok(ValRef::Number(1))
 }
 
-fn lib_nequals(args: &Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match lib_equals(args, scope) {
         Ok(ValRef::Number(1)) => Ok(ValRef::Number(0)),
         Ok(ValRef::Number(0)) => Ok(ValRef::Number(1)),
@@ -107,7 +107,7 @@ fn lib_nequals(args: &Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
     }
 }
 
-fn lib_lteq(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if to_num(&args[idx]) > to_num(&args[idx + 1]) {
             return Ok(ValRef::Number(0));
@@ -117,7 +117,7 @@ fn lib_lteq(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String
     Ok(ValRef::Number(1))
 }
 
-fn lib_lt(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if to_num(&args[idx]) >= to_num(&args[idx + 1]) {
             return Ok(ValRef::Number(0));
@@ -127,7 +127,7 @@ fn lib_lt(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(ValRef::Number(1))
 }
 
-fn lib_gteq(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if to_num(&args[idx]) < to_num(&args[idx + 1]) {
             return Ok(ValRef::Number(0));
@@ -137,7 +137,7 @@ fn lib_gteq(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String
     Ok(ValRef::Number(1))
 }
 
-fn lib_gt(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if to_num(&args[idx]) <= to_num(&args[idx + 1]) {
             return Ok(ValRef::Number(0));
@@ -147,7 +147,7 @@ fn lib_gt(args: &Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(ValRef::Number(1))
 }
 
-fn lib_set(args: &Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 {
         return Err("'set' requires 2 arguments".to_string());
     }
@@ -161,7 +161,7 @@ fn lib_set(args: &Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     Ok(args[1].clone())
 }
 
-fn lib_if(args: &Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 && args.len() != 3 {
         return Err("'if' requires 2 or 3 arguments".to_string());
     }
@@ -186,6 +186,10 @@ fn lib_if(args: &Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stri
     }
 }
 
+fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    Ok(ValRef::List(Rc::new(args)))
+}
+
 pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     let mut scope = Scope::new(parent);
 
@@ -206,6 +210,7 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     put(">", &lib_gt);
     put("set", &lib_set);
     put("if", &lib_if);
+    put("list", &lib_list);
 
     scope
 }
