@@ -65,7 +65,7 @@ fn is_space(ch: u8) -> bool {
 }
 
 fn is_separator(ch: u8) -> bool {
-    return is_space(ch) || ch == b')';
+    return is_space(ch) || ch == b')' || ch == b'}';
 }
 
 fn skip_space<'a>(r: &mut Reader<'a>) {
@@ -93,6 +93,14 @@ fn read_name<'a>(r: &mut Reader<'a>) -> Result<String, ParseError> {
     let start = r.idx;
     while !r.eof() && !is_separator(r.peek()) {
         r.consume();
+    }
+
+    if r.idx == start {
+        if r.eof() {
+            return Err(r.err("Unexpected EOF".to_string()));
+        } else {
+            return Err(r.err(format!("Unexpected '{}'", r.peek() as char)));
+        }
     }
 
     let s = match std::str::from_utf8(&r.string[start..r.idx]) {
@@ -125,6 +133,7 @@ fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
             let ch = match r.peek() {
                 b't' => b'\t',
                 b'n' => b'\n',
+                b'e' => 0o33,
                 b'0' => b'\0',
                 b'"' => b'"',
                 b'\\' => b'\\',
@@ -162,12 +171,14 @@ fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     Ok(ast::Expression::Number(num))
 }
 
-fn parse_parenthesized<'a>(r: &mut Reader<'a>) -> Result<Vec<ast::Expression>, ParseError> {
-    r.consume(); // '('
+fn parse_list<'a>(r: &mut Reader<'a>, closer: u8) -> Result<Vec<ast::Expression>, ParseError> {
+    r.consume(); // Opener
 
     let mut exprs: Vec<ast::Expression> = Vec::new();
     loop {
-        if r.peek() == b')' {
+        skip_space(r);
+
+        if r.peek() == closer {
             r.consume();
             break;
         }
@@ -176,6 +187,7 @@ fn parse_parenthesized<'a>(r: &mut Reader<'a>) -> Result<Vec<ast::Expression>, P
             Some(expr) => expr,
             None => return Err(r.err("Unexpected EOF".to_string())),
         };
+
         exprs.push(expr);
     }
 
@@ -185,14 +197,18 @@ fn parse_parenthesized<'a>(r: &mut Reader<'a>) -> Result<Vec<ast::Expression>, P
 fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '\''
     if r.peek() == b'(' {
-        Ok(ast::Expression::Quote(Rc::new(parse_parenthesized(r)?)))
+        Ok(ast::Expression::Quote(Rc::new(parse_list(r, b')')?)))
     } else {
         Ok(ast::Expression::String(read_name(r)?))
     }
 }
 
+fn parse_braced<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+    Ok(ast::Expression::Quote(Rc::new(parse_list(r, b'}')?)))
+}
+
 fn parse_call<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
-    Ok(ast::Expression::Call(parse_parenthesized(r)?))
+    Ok(ast::Expression::Call(parse_list(r, b')')?))
 }
 
 fn parse_lookup<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
@@ -215,6 +231,8 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
         Ok(Some(parse_quote(r)?))
     } else if ch == b'(' {
         Ok(Some(parse_call(r)?))
+    } else if ch == b'{' {
+        Ok(Some(parse_braced(r)?))
     } else {
         Ok(Some(parse_lookup(r)?))
     }
