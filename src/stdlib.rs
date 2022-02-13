@@ -245,6 +245,34 @@ fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     }
 }
 
+fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    let argvals = match scope.borrow_mut().lookup(&"$".to_string())? {
+        ValRef::List(l) => l,
+        _ => return Err("Expected $ to be a list".to_string()),
+    };
+
+    let mut argidx = 0;
+    let mut retval = ValRef::None;
+    for arg in args {
+        match arg {
+            ValRef::String(name) => {
+                if argidx >= argvals.len() {
+                    return Err("Wrong argument count".to_string());
+                }
+
+                scope.borrow_mut().insert(name.as_ref().clone(), argvals[argidx].clone());
+                argidx += 1;
+            }
+            ValRef::Quote(q) => {
+                retval = eval_call(q.as_ref(), scope)?;
+            }
+            _ => return Err("Expected strings and quotes".to_string()),
+        }
+    }
+
+    Ok(retval)
+}
+
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::List(Rc::new(args)))
 }
@@ -280,6 +308,7 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     put("if", Box::new(lib_if));
     put("while", Box::new(lib_while));
     put("do", Box::new(lib_do));
+    put("bind", Box::new(lib_bind));
     put("list", Box::new(lib_list));
     put("lazy", Box::new(lib_lazy));
 

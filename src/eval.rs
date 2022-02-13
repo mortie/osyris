@@ -71,7 +71,7 @@ impl Scope {
         }
     }
 
-    fn lookup(&self, name: &String) -> Result<ValRef, String> {
+    pub fn lookup(&self, name: &String) -> Result<ValRef, String> {
         match self.map.get(name) {
             Some(r) => Ok(r.clone()),
             None => match &self.parent {
