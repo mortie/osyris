@@ -237,6 +237,14 @@ fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, St
     }
 }
 
+fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() > 0 {
+        Ok(args[args.len() - 1].clone())
+    } else {
+        Ok(ValRef::None)
+    }
+}
+
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::List(Rc::new(args)))
 }
@@ -271,6 +279,7 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     put("set", Box::new(lib_set));
     put("if", Box::new(lib_if));
     put("while", Box::new(lib_while));
+    put("do", Box::new(lib_do));
     put("list", Box::new(lib_list));
     put("lazy", Box::new(lib_lazy));
 
