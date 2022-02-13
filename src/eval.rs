@@ -84,6 +84,17 @@ impl Scope {
     pub fn insert(&mut self, name: String, val: ValRef) {
         self.map.insert(name, val);
     }
+
+    pub fn replace(&mut self, name: String, val: ValRef) -> bool {
+        if self.map.contains_key(&name) {
+            self.map.insert(name, val);
+            true
+        } else if let Some(parent) = &self.parent {
+            parent.borrow_mut().replace(name, val)
+        } else {
+            false
+        }
+    }
 }
 
 pub fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {

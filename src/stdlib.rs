@@ -14,6 +14,13 @@ fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String
     Ok(ValRef::None)
 }
 
+fn to_bool(arg: &ValRef) -> bool {
+    match arg {
+        ValRef::Number(num) => *num != 0,
+        _ => false,
+    }
+}
+
 fn to_num(arg: &ValRef) -> i32 {
     match arg {
         ValRef::Number(num) => *num,
@@ -161,18 +168,30 @@ fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stri
     Ok(ValRef::None)
 }
 
+fn lib_replace(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 2 {
+        return Err("'replace' requires 2 arguments".to_string());
+    }
+
+    let name = match &args[0] {
+        ValRef::String(s) => s.as_ref(),
+        _ => return Err("'replace' requires the first argument to be a string".to_string()),
+    };
+
+    if scope.borrow_mut().replace(name.clone(), args[1].clone()) {
+        Ok(ValRef::None)
+    } else {
+        Err(format!("Variable '{}' doesn't exist", name))
+    }
+}
+
 fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 && args.len() != 3 {
         return Err("'if' requires 2 or 3 arguments".to_string());
     }
 
-    let cond = match args[0] {
-        ValRef::Number(num) => num != 0,
-        _ => false,
-    };
-
     let expr;
-    if cond {
+    if to_bool(&args[0]) {
         expr = &args[1];
     } else if args.len() == 3 {
         expr = &args[2];
@@ -183,6 +202,38 @@ fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
     match expr {
         ValRef::Quote(func) => call(func, scope),
         val => Ok(val.clone()),
+    }
+}
+
+fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 1 && args.len() != 2 {
+        return Err("'while' requires 1 or 2 arguments".to_string());
+    }
+
+    let cond = match &args[0] {
+        ValRef::Quote(func) => func,
+        _ => return Err("'while' expects the firt argument to be a function".to_string()),
+    };
+
+    let body = if args.len() >= 1 {
+        match &args[1] {
+            ValRef::Quote(func) => Some(func),
+            _ => return Err("'while' expects the second argument to be a function".to_string()),
+        }
+    } else {
+        None
+    };
+
+    let mut retval: ValRef = ValRef::None;
+    loop {
+        if !to_bool(&call(cond.as_ref(), scope)?) {
+            return Ok(retval);
+        }
+
+        match body {
+            Some(body) => retval = call(body, scope)?,
+            _ => (),
+        };
     }
 }
 
@@ -217,7 +268,9 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     put(">=", Box::new(lib_gteq));
     put(">", Box::new(lib_gt));
     put("set", Box::new(lib_set));
+    put("replace", Box::new(lib_replace));
     put("if", Box::new(lib_if));
+    put("while", Box::new(lib_while));
     put("list", Box::new(lib_list));
     put("lazy", Box::new(lib_lazy));
 
