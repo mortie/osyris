@@ -1,4 +1,4 @@
-use super::eval::{ValRef, Scope, FuncVal, call};
+use super::eval::{ValRef, Scope, FuncVal, eval_call};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -200,7 +200,7 @@ fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
     }
 
     match expr {
-        ValRef::Quote(func) => call(func, scope),
+        ValRef::Quote(func) => eval_call(func, scope),
         val => Ok(val.clone()),
     }
 }
@@ -226,12 +226,12 @@ fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, St
 
     let mut retval: ValRef = ValRef::None;
     loop {
-        if !to_bool(&call(cond.as_ref(), scope)?) {
+        if !to_bool(&eval_call(cond.as_ref(), scope)?) {
             return Ok(retval);
         }
 
         match body {
-            Some(body) => retval = call(body, scope)?,
+            Some(body) => retval = eval_call(body, scope)?,
             _ => (),
         };
     }

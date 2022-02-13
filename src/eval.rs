@@ -97,30 +97,13 @@ impl Scope {
     }
 }
 
-pub fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    if exprs.len() < 1 {
-        return Err("Call list has no elements".to_string());
-    }
-
-    let mut args: Vec<ValRef> = Vec::new();
-    args.reserve(exprs.len() - 1);
-    for idx in 1..exprs.len() {
-        args.push(eval(&exprs[idx], scope)?);
-    }
-
-    let func = eval(&exprs[0], scope)?;
+pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => {
             let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
             s.borrow_mut().insert("$".to_string(), ValRef::List(Rc::new(args)));
-
-            let mut retval = ValRef::None;
-            for expr in exprs.as_ref() {
-                retval = eval(expr, &s)?;
-            }
-
-            Ok(retval)
+            eval_call(exprs.as_ref(), &s)
         }
         ValRef::List(list) => {
             if args.len() != 1 {
@@ -140,6 +123,21 @@ pub fn call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<
         }
         _ => Err(format!("Attempt to call non-function {}", func))
     }
+}
+
+pub fn eval_call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if exprs.len() < 1 {
+        return Err("Call list has no elements".to_string());
+    }
+
+    let mut args: Vec<ValRef> = Vec::new();
+    args.reserve(exprs.len() - 1);
+    for idx in 1..exprs.len() {
+        args.push(eval(&exprs[idx], scope)?);
+    }
+
+    let func = eval(&exprs[0], scope)?;
+    call(func, args, scope)
 }
 
 fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -167,7 +165,7 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
         ast::Expression::String(s) => Ok(ValRef::String(Rc::new(s.clone()))),
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
         ast::Expression::Lookup(name) => scope.borrow().lookup(name),
-        ast::Expression::Call(exprs) => call(exprs, scope),
+        ast::Expression::Call(exprs) => eval_call(exprs, scope),
         ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
     }?;
 
