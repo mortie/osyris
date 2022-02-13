@@ -28,7 +28,7 @@ fn equals(arg1: &ValRef, arg2: &ValRef) -> bool {
         (ValRef::String(a), ValRef::String(b)) => a == b,
         (ValRef::Quote(a), ValRef::Quote(b)) => Rc::ptr_eq(a, b),
         (ValRef::List(a), ValRef::List(b)) => Rc::ptr_eq(a, b),
-        (ValRef::Func(a), ValRef::Func(b)) => (a as *const FuncVal) == (b as *const FuncVal),
+        (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
         _ => false,
     }
 }
@@ -202,24 +202,24 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     let mut scope = Scope::new(parent);
 
     let mut put = |name: &str, func: FuncVal| {
-        scope.insert(name.to_string(), ValRef::Func(func));
+        scope.insert(name.to_string(), ValRef::Func(Rc::new(func)));
     };
 
-    put("print", &lib_print);
-    put("+", &lib_add);
-    put("-", &lib_sub);
-    put("*", &lib_mul);
-    put("/", &lib_div);
-    put("==", &lib_equals);
-    put("!=", &lib_nequals);
-    put("<=", &lib_lteq);
-    put("<", &lib_lt);
-    put(">=", &lib_gteq);
-    put(">", &lib_gt);
-    put("set", &lib_set);
-    put("if", &lib_if);
-    put("list", &lib_list);
-    put("lazy", &lib_lazy);
+    put("print", Box::new(lib_print));
+    put("+", Box::new(lib_add));
+    put("-", Box::new(lib_sub));
+    put("*", Box::new(lib_mul));
+    put("/", Box::new(lib_div));
+    put("==", Box::new(lib_equals));
+    put("!=", Box::new(lib_nequals));
+    put("<=", Box::new(lib_lteq));
+    put("<", Box::new(lib_lt));
+    put(">=", Box::new(lib_gteq));
+    put(">", Box::new(lib_gt));
+    put("set", Box::new(lib_set));
+    put("if", Box::new(lib_if));
+    put("list", Box::new(lib_list));
+    put("lazy", Box::new(lib_lazy));
 
     scope
 }
