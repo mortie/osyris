@@ -154,6 +154,20 @@ fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::Number(1))
 }
 
+fn lib_def(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 2 {
+        return Err("'def' requires 2 arguments".to_string());
+    }
+
+    let name = match &args[0] {
+        ValRef::String(s) => s.as_ref(),
+        _ => return Err("'def' requires the first argument to be a string".to_string()),
+    };
+
+    scope.borrow_mut().insert(name.clone(), args[1].clone());
+    Ok(ValRef::None)
+}
+
 fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 {
         return Err("'set' requires 2 arguments".to_string());
@@ -162,20 +176,6 @@ fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stri
     let name = match &args[0] {
         ValRef::String(s) => s.as_ref(),
         _ => return Err("'set' requires the first argument to be a string".to_string()),
-    };
-
-    scope.borrow_mut().insert(name.clone(), args[1].clone());
-    Ok(ValRef::None)
-}
-
-fn lib_replace(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    if args.len() != 2 {
-        return Err("'replace' requires 2 arguments".to_string());
-    }
-
-    let name = match &args[0] {
-        ValRef::String(s) => s.as_ref(),
-        _ => return Err("'replace' requires the first argument to be a string".to_string()),
     };
 
     if scope.borrow_mut().replace(name.clone(), args[1].clone()) {
@@ -267,8 +267,8 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     put("<", Box::new(lib_lt));
     put(">=", Box::new(lib_gteq));
     put(">", Box::new(lib_gt));
+    put("def", Box::new(lib_def));
     put("set", Box::new(lib_set));
-    put("replace", Box::new(lib_replace));
     put("if", Box::new(lib_if));
     put("while", Box::new(lib_while));
     put("list", Box::new(lib_list));
