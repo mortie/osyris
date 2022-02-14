@@ -246,21 +246,26 @@ fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
 }
 
 fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    let argvals = match scope.borrow_mut().lookup(&"$".to_string())? {
+    if args.len() < 1 {
+        return Err("'bind' requires at least 1 argument".to_string());
+    }
+
+    let vals = match &args[0] {
         ValRef::List(l) => l,
         _ => return Err("Expected $ to be a list".to_string()),
     };
 
     let mut argidx = 0;
     let mut retval = ValRef::None;
-    for arg in args {
+    for idx in 1..args.len() {
+        let arg = &args[idx];
         match arg {
             ValRef::String(name) => {
-                if argidx >= argvals.len() {
+                if argidx >= vals.len() {
                     return Err("Wrong argument count".to_string());
                 }
 
-                scope.borrow_mut().insert(name.as_ref().clone(), argvals[argidx].clone());
+                scope.borrow_mut().insert(name.as_ref().clone(), vals[argidx].clone());
                 argidx += 1;
             }
             ValRef::Quote(q) => {
