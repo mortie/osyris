@@ -2,13 +2,18 @@ use super::eval::{ValRef, Scope, FuncVal, eval_call};
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() {
         if idx != 0 {
             print!(" ");
         }
-        print!("{}", args[idx]);
+
+        match &args[idx] {
+            ValRef::String(s) => print!("{}", s.as_ref()),
+            val => print!("{}", val),
+        }
     }
     println!();
     Ok(ValRef::None)
@@ -282,6 +287,30 @@ fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::List(Rc::new(args)))
 }
 
+fn lib_map(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() % 2 != 0 {
+        return Err("'map' requires an even number of arguments".to_string());
+    }
+
+    let mut map: HashMap<String, ValRef> = HashMap::new();
+    let mut idx = 0;
+    while idx < args.len() {
+        let key = &args[idx];
+        idx += 1;
+        let val = &args[idx];
+        idx += 1;
+
+        let keystr = match key {
+            ValRef::String(s) => s,
+            _ => return Err("'map' requires keys to be strings".to_string()),
+        };
+
+        map.insert(keystr.as_ref().clone(), val.clone());
+    }
+
+    Ok(ValRef::Map(Rc::new(map)))
+}
+
 fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 1 {
         return Err("'lazy' requires 1 argument".to_string());
@@ -315,6 +344,7 @@ pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
     put("do", Box::new(lib_do));
     put("bind", Box::new(lib_bind));
     put("list", Box::new(lib_list));
+    put("map", Box::new(lib_map));
     put("lazy", Box::new(lib_lazy));
 
     scope
