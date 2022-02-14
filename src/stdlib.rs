@@ -252,7 +252,7 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
 
     let vals = match &args[0] {
         ValRef::List(l) => l,
-        _ => return Err("Expected $ to be a list".to_string()),
+        _ => return Err("'bind' expects first argument to be a list".to_string()),
     };
 
     let mut argidx = 0;
@@ -271,7 +271,7 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
             ValRef::Quote(q) => {
                 retval = eval_call(q.as_ref(), scope)?;
             }
-            _ => return Err("Expected strings and quotes".to_string()),
+            _ => return Err("'bind' expects strings and quotes only".to_string()),
         }
     }
 
