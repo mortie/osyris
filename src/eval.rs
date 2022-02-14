@@ -102,7 +102,7 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
         ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => {
             let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
-            s.borrow_mut().insert("$".to_string(), ValRef::List(Rc::new(args)));
+            s.borrow_mut().insert("args".to_string(), ValRef::List(Rc::new(args)));
             eval_call(exprs.as_ref(), &s)
         }
         ValRef::List(list) => {
