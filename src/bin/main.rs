@@ -1,8 +1,8 @@
-use glisp::{parse, eval, stdlib};
+use glisp::{eval, parse, stdlib};
+use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 fn main() {
     let mut args = env::args();
@@ -34,7 +34,7 @@ fn main() {
             Ok(expr) => match expr {
                 Some(expr) => expr,
                 None => break,
-            }
+            },
             Err(err) => {
                 println!("Parse error: {}:{}: {}", err.line, err.col, err.msg);
                 return;
@@ -46,7 +46,7 @@ fn main() {
                 println!("Error: {}", err);
                 return;
             }
-            _ => ()
+            _ => (),
         }
     }
 }

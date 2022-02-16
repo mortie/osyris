@@ -1,9 +1,9 @@
 use super::ast;
 
-use std::rc::Rc;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
-use std::cell::RefCell;
+use std::rc::Rc;
 
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
@@ -54,9 +54,7 @@ impl fmt::Display for ValRef {
         match self {
             Self::None => write!(f, "None"),
             Self::Number(num) => write!(f, "{}", num),
-            Self::String(s) => {
-                write_string(f, s.as_ref())
-            }
+            Self::String(s) => write_string(f, s.as_ref()),
             Self::Quote(q) => write!(f, "{:?}", q),
             Self::Map(m) => {
                 write!(f, "{{")?;
@@ -115,7 +113,7 @@ impl Scope {
             None => match &self.parent {
                 Some(parent) => parent.borrow().lookup(name),
                 None => Err(format!("Variable '{}' doesn't exist", name)),
-            }
+            },
         }
     }
 
@@ -128,7 +126,8 @@ impl Scope {
     }
 
     pub fn put_lazy(&mut self, name: &str, func: Rc<FuncVal>) {
-        self.map.insert(name.to_string(), ValRef::Lazy(Box::new(ValRef::Func(func))));
+        self.map
+            .insert(name.to_string(), ValRef::Lazy(Box::new(ValRef::Func(func))));
     }
 
     pub fn put_func(&mut self, name: &str, func: Rc<FuncVal>) {
@@ -152,12 +151,16 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
         ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => {
             let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
-            s.borrow_mut().insert("args".to_string(), ValRef::List(Rc::new(args)));
+            s.borrow_mut()
+                .insert("args".to_string(), ValRef::List(Rc::new(args)));
             eval_call(exprs.as_ref(), &s)
         }
         ValRef::List(list) => {
             if args.len() != 1 {
-                return Err(format!("Array lookup requires exactly 1 argument, got {}", args.len()));
+                return Err(format!(
+                    "Array lookup requires exactly 1 argument, got {}",
+                    args.len()
+                ));
             }
 
             let idx = match args[0] {
@@ -171,11 +174,14 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
                 Ok(list.as_ref()[idx as usize].clone())
             }
         }
-        _ => Err(format!("Attempt to call non-function {}", func))
+        _ => Err(format!("Attempt to call non-function {}", func)),
     }
 }
 
-pub fn eval_call(exprs: &Vec<ast::Expression>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn eval_call(
+    exprs: &Vec<ast::Expression>,
+    scope: &Rc<RefCell<Scope>>,
+) -> Result<ValRef, String> {
     if exprs.len() < 1 {
         return Err("Call list has no elements".to_string());
     }

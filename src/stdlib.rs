@@ -1,8 +1,8 @@
-use super::eval::{ValRef, Scope, eval_call};
+use super::eval::{eval_call, Scope, ValRef};
 
-use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() {
@@ -270,7 +270,9 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
                     return Err("Wrong argument count".to_string());
                 }
 
-                scope.borrow_mut().insert(name.as_ref().clone(), vals[argidx].clone());
+                scope
+                    .borrow_mut()
+                    .insert(name.as_ref().clone(), vals[argidx].clone());
                 argidx += 1;
             }
             ValRef::Quote(q) => {
