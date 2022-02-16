@@ -19,6 +19,35 @@ pub enum ValRef {
     ProtectedLazy(Box<ValRef>),
 }
 
+impl ValRef {
+    pub fn to_bool(&self) -> bool {
+        match self {
+            ValRef::Number(0) => false,
+            ValRef::None => false,
+            _ => true,
+        }
+    }
+
+    pub fn to_num(&self) -> i32 {
+        match self {
+            ValRef::Number(num) => *num,
+            _ => 0,
+        }
+    }
+
+    pub fn equals(a: &Self, b: &Self) -> bool {
+        match (a, b) {
+            (ValRef::None, ValRef::None) => true,
+            (ValRef::Number(a), ValRef::Number(b)) => a == b,
+            (ValRef::String(a), ValRef::String(b)) => a == b,
+            (ValRef::Quote(a), ValRef::Quote(b)) => Rc::ptr_eq(a, b),
+            (ValRef::List(a), ValRef::List(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
+
 impl Clone for ValRef {
     fn clone(&self) -> Self {
         match self {
