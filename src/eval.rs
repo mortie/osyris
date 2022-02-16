@@ -13,6 +13,7 @@ pub enum ValRef {
     String(Rc<String>),
     Quote(Rc<Vec<ast::Expression>>),
     List(Rc<Vec<ValRef>>),
+    Map(Rc<HashMap<String, ValRef>>),
     Func(Rc<FuncVal>),
     Lazy(Box<ValRef>),
     ProtectedLazy(Box<ValRef>),
@@ -26,6 +27,7 @@ impl Clone for ValRef {
             Self::String(s) => Self::String(s.clone()),
             Self::Quote(q) => Self::Quote(q.clone()),
             Self::List(l) => Self::List(l.clone()),
+            Self::Map(m) => Self::Map(m.clone()),
             Self::Func(f) => Self::Func(f.clone()),
             Self::Lazy(val) => Self::Lazy(val.clone()),
             Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
@@ -33,13 +35,43 @@ impl Clone for ValRef {
     }
 }
 
+fn write_string(f: &mut fmt::Formatter, s: &String) -> fmt::Result {
+    write!(f, "\"")?;
+    for ch in s.chars() {
+        if ch == '"' {
+            write!(f, "\\\"")?;
+        } else if ch == '\\' {
+            write!(f, "\\\\")?;
+        } else {
+            write!(f, "{}", ch)?;
+        }
+    }
+    write!(f, "\"")
+}
+
 impl fmt::Display for ValRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::None => write!(f, "None"),
             Self::Number(num) => write!(f, "{}", num),
-            Self::String(s) => write!(f, "{}", s),
+            Self::String(s) => {
+                write_string(f, s.as_ref())
+            }
             Self::Quote(q) => write!(f, "{:?}", q),
+            Self::Map(m) => {
+                write!(f, "{{")?;
+                let mut first = true;
+                for (key, val) in m.as_ref() {
+                    if !first {
+                        write!(f, ", ")?;
+                    }
+
+                    write_string(f, key)?;
+                    write!(f, ": {}", val)?;
+                    first = false;
+                }
+                write!(f, "}}")
+            }
             Self::List(l) => {
                 write!(f, "[")?;
                 let vec = l.as_ref();
@@ -55,6 +87,12 @@ impl fmt::Display for ValRef {
             Self::Lazy(val) => write!(f, "(lazy {})", val),
             Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
         }
+    }
+}
+
+impl fmt::Debug for ValRef {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

@@ -2,13 +2,18 @@ use super::eval::{ValRef, Scope, eval_call};
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() {
         if idx != 0 {
             print!(" ");
         }
-        print!("{}", args[idx]);
+
+        match &args[idx] {
+            ValRef::String(s) => print!("{}", s.as_ref()),
+            val => print!("{}", val),
+        }
     }
     println!();
     Ok(ValRef::None)
@@ -252,7 +257,7 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
 
     let vals = match &args[0] {
         ValRef::List(l) => l,
-        _ => return Err("Expected $ to be a list".to_string()),
+        _ => return Err("'bind' expects first argument to be a list".to_string()),
     };
 
     let mut argidx = 0;
@@ -271,7 +276,7 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
             ValRef::Quote(q) => {
                 retval = eval_call(q.as_ref(), scope)?;
             }
-            _ => return Err("Expected strings and quotes".to_string()),
+            _ => return Err("'bind' expects strings and quotes only".to_string()),
         }
     }
 
@@ -280,6 +285,30 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
 
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::List(Rc::new(args)))
+}
+
+fn lib_map(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() % 2 != 0 {
+        return Err("'map' requires an even number of arguments".to_string());
+    }
+
+    let mut map: HashMap<String, ValRef> = HashMap::new();
+    let mut idx = 0;
+    while idx < args.len() {
+        let key = &args[idx];
+        idx += 1;
+        let val = &args[idx];
+        idx += 1;
+
+        let keystr = match key {
+            ValRef::String(s) => s,
+            _ => return Err("'map' requires keys to be strings".to_string()),
+        };
+
+        map.insert(keystr.as_ref().clone(), val.clone());
+    }
+
+    Ok(ValRef::Map(Rc::new(map)))
 }
 
 fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -309,5 +338,6 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     scope.borrow_mut().put_func("do", Rc::new(lib_do));
     scope.borrow_mut().put_func("bind", Rc::new(lib_bind));
     scope.borrow_mut().put_func("list", Rc::new(lib_list));
+    scope.borrow_mut().put_func("map", Rc::new(lib_map));
     scope.borrow_mut().put_func("lazy", Rc::new(lib_lazy));
 }
