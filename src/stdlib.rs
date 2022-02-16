@@ -1,4 +1,4 @@
-use super::eval::{ValRef, Scope, FuncVal, eval_call};
+use super::eval::{ValRef, Scope, eval_call};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -287,35 +287,27 @@ fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
         return Err("'lazy' requires 1 argument".to_string());
     }
 
-    Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
+    Ok(ValRef::ProtectedLazy(Box::new(args[0].clone())))
 }
 
-pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Scope {
-    let mut scope = Scope::new(parent);
-
-    let mut put = |name: &str, func: FuncVal| {
-        scope.insert(name.to_string(), ValRef::Func(Rc::new(func)));
-    };
-
-    put("print", Box::new(lib_print));
-    put("+", Box::new(lib_add));
-    put("-", Box::new(lib_sub));
-    put("*", Box::new(lib_mul));
-    put("/", Box::new(lib_div));
-    put("==", Box::new(lib_equals));
-    put("!=", Box::new(lib_nequals));
-    put("<=", Box::new(lib_lteq));
-    put("<", Box::new(lib_lt));
-    put(">=", Box::new(lib_gteq));
-    put(">", Box::new(lib_gt));
-    put("def", Box::new(lib_def));
-    put("set", Box::new(lib_set));
-    put("if", Box::new(lib_if));
-    put("while", Box::new(lib_while));
-    put("do", Box::new(lib_do));
-    put("bind", Box::new(lib_bind));
-    put("list", Box::new(lib_list));
-    put("lazy", Box::new(lib_lazy));
-
-    scope
+pub fn init(scope: &Rc<RefCell<Scope>>) {
+    scope.borrow_mut().put_func("print", Rc::new(lib_print));
+    scope.borrow_mut().put_func("+", Rc::new(lib_add));
+    scope.borrow_mut().put_func("-", Rc::new(lib_sub));
+    scope.borrow_mut().put_func("*", Rc::new(lib_mul));
+    scope.borrow_mut().put_func("/", Rc::new(lib_div));
+    scope.borrow_mut().put_func("==", Rc::new(lib_equals));
+    scope.borrow_mut().put_func("!=", Rc::new(lib_nequals));
+    scope.borrow_mut().put_func("<=", Rc::new(lib_lteq));
+    scope.borrow_mut().put_func("<", Rc::new(lib_lt));
+    scope.borrow_mut().put_func(">=", Rc::new(lib_gteq));
+    scope.borrow_mut().put_func(">", Rc::new(lib_gt));
+    scope.borrow_mut().put_func("def", Rc::new(lib_def));
+    scope.borrow_mut().put_func("set", Rc::new(lib_set));
+    scope.borrow_mut().put_func("if", Rc::new(lib_if));
+    scope.borrow_mut().put_func("while", Rc::new(lib_while));
+    scope.borrow_mut().put_func("do", Rc::new(lib_do));
+    scope.borrow_mut().put_func("bind", Rc::new(lib_bind));
+    scope.borrow_mut().put_func("list", Rc::new(lib_list));
+    scope.borrow_mut().put_func("lazy", Rc::new(lib_lazy));
 }

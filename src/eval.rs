@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::cell::RefCell;
 
-pub type FuncVal = Box<dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>>;
+pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
 pub enum ValRef {
     None,
@@ -14,8 +14,8 @@ pub enum ValRef {
     Quote(Rc<Vec<ast::Expression>>),
     List(Rc<Vec<ValRef>>),
     Func(Rc<FuncVal>),
-    Lazy(Rc<ValRef>),
-    ProtectedLazy(Rc<ValRef>),
+    Lazy(Box<ValRef>),
+    ProtectedLazy(Box<ValRef>),
 }
 
 impl Clone for ValRef {
@@ -83,6 +83,18 @@ impl Scope {
 
     pub fn insert(&mut self, name: String, val: ValRef) {
         self.map.insert(name, val);
+    }
+
+    pub fn put(&mut self, name: &str, val: ValRef) {
+        self.map.insert(name.to_string(), val);
+    }
+
+    pub fn put_lazy(&mut self, name: &str, func: Rc<FuncVal>) {
+        self.map.insert(name.to_string(), ValRef::Lazy(Box::new(ValRef::Func(func))));
+    }
+
+    pub fn put_func(&mut self, name: &str, func: Rc<FuncVal>) {
+        self.map.insert(name.to_string(), ValRef::Func(func));
     }
 
     pub fn replace(&mut self, name: String, val: ValRef) -> bool {

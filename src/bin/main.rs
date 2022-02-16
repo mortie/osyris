@@ -26,7 +26,9 @@ fn main() {
 
     let mut reader = parse::Reader::new(&string.as_bytes());
 
-    let scope = Rc::new(RefCell::new(stdlib::new(None)));
+    let scope = Rc::new(RefCell::new(eval::Scope::new(None)));
+    stdlib::init(&scope);
+
     loop {
         let expr = match parse::parse(&mut reader) {
             Ok(expr) => match expr {
