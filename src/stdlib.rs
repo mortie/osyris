@@ -21,8 +21,9 @@ fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String
 
 fn to_bool(arg: &ValRef) -> bool {
     match arg {
-        ValRef::Number(num) => *num != 0,
-        _ => false,
+        ValRef::Number(0) => false,
+        ValRef::None => false,
+        _ => true,
     }
 }
 
@@ -157,6 +158,26 @@ fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     }
 
     Ok(ValRef::Number(1))
+}
+
+fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    for idx in 0..args.len() - 1 {
+        if to_bool(&args[idx]) {
+            return Ok(args[idx].clone());
+        }
+    }
+
+    Ok(args[args.len() - 1].clone())
+}
+
+fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    for idx in 0..args.len() - 1 {
+        if !to_bool(&args[idx]) {
+            return Ok(args[idx].clone());
+        }
+    }
+
+    Ok(args[args.len() - 1].clone())
 }
 
 fn lib_def(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -333,6 +354,8 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     scope.borrow_mut().put_func("<", Rc::new(lib_lt));
     scope.borrow_mut().put_func(">=", Rc::new(lib_gteq));
     scope.borrow_mut().put_func(">", Rc::new(lib_gt));
+    scope.borrow_mut().put_func("||", Rc::new(lib_or));
+    scope.borrow_mut().put_func("&&", Rc::new(lib_and));
     scope.borrow_mut().put_func("def", Rc::new(lib_def));
     scope.borrow_mut().put_func("set", Rc::new(lib_set));
     scope.borrow_mut().put_func("if", Rc::new(lib_if));
