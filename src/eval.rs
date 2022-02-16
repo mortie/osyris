@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
+use std::any::Any;
 
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
@@ -15,8 +16,9 @@ pub enum ValRef {
     List(Rc<Vec<ValRef>>),
     Map(Rc<HashMap<String, ValRef>>),
     Func(Rc<FuncVal>),
-    Lazy(Box<ValRef>),
-    ProtectedLazy(Box<ValRef>),
+    Lazy(Rc<ValRef>),
+    ProtectedLazy(Rc<ValRef>),
+    Native(Rc<dyn Any>),
 }
 
 impl ValRef {
@@ -60,11 +62,12 @@ impl Clone for ValRef {
             Self::Func(f) => Self::Func(f.clone()),
             Self::Lazy(val) => Self::Lazy(val.clone()),
             Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
+            Self::Native(n) => Self::Native(n.clone()),
         }
     }
 }
 
-fn write_string(f: &mut fmt::Formatter, s: &String) -> fmt::Result {
+pub fn write_string(f: &mut fmt::Formatter, s: &String) -> fmt::Result {
     write!(f, "\"")?;
     for ch in s.chars() {
         if ch == '"' {
@@ -113,6 +116,7 @@ impl fmt::Display for ValRef {
             Self::Func(_) => write!(f, "(func)"),
             Self::Lazy(val) => write!(f, "(lazy {})", val),
             Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
+            Self::Native(n) => write!(f, "(native {:p})", n.as_ref()),
         }
     }
 }
@@ -156,7 +160,7 @@ impl Scope {
 
     pub fn put_lazy(&mut self, name: &str, func: Rc<FuncVal>) {
         self.map
-            .insert(name.to_string(), ValRef::Lazy(Box::new(ValRef::Func(func))));
+            .insert(name.to_string(), ValRef::Lazy(Rc::new(ValRef::Func(func))));
     }
 
     pub fn put_func(&mut self, name: &str, func: Rc<FuncVal>) {

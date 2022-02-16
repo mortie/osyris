@@ -312,7 +312,7 @@ fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
         return Err("'lazy' requires 1 argument".to_string());
     }
 
-    Ok(ValRef::ProtectedLazy(Box::new(args[0].clone())))
+    Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
 }
 
 pub fn init(scope: &Rc<RefCell<Scope>>) {
