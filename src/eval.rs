@@ -186,21 +186,33 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
         }
         ValRef::List(list) => {
             if args.len() != 1 {
-                return Err(format!(
-                    "Array lookup requires exactly 1 argument, got {}",
-                    args.len()
-                ));
+                return Err("Array lookup requires 1 argument".to_string());
             }
 
             let idx = match args[0] {
                 ValRef::Number(idx) => idx,
-                _ => return Err("Attempt to index with non-number".to_string()),
+                _ => return Err("Attempt to index array with non-number".to_string()),
             };
 
             if idx as usize > list.len() || idx < 0 {
                 Ok(ValRef::None)
             } else {
                 Ok(list.as_ref()[idx as usize].clone())
+            }
+        }
+        ValRef::Map(map) => {
+            if args.len() != 1 {
+                return Err("Map lookup requires exactly 1 argument".to_string())
+            }
+
+            let key = match &args[0] {
+                ValRef::String(key) => key,
+                _ => return Err("Attempt to index map with non-string".to_string()),
+            };
+
+            match map.as_ref().get(key.as_ref()) {
+                Some(val) => Ok(val.clone()),
+                None => Ok(ValRef::None),
             }
         }
         _ => Err(format!("Attempt to call non-function {}", func)),
