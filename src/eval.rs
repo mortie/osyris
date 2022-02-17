@@ -14,15 +14,15 @@ pub trait PortVal {
         return Err("This port doesn't support reading".to_string());
     }
 
-    fn read_chunk(&mut self, size: usize) -> Result<ValRef, String> {
+    fn read_chunk(&mut self, _: usize) -> Result<ValRef, String> {
         return Err("This port doesn't support reading chunks".to_string());
     }
 
-    fn write(&mut self, val: &ValRef) -> Result<(), String> {
+    fn write(&mut self, _: &ValRef) -> Result<(), String> {
         return Err("This port doesn't support writing".to_string());
     }
 
-    fn seek(&mut self, pos: io::SeekFrom) -> Result<(), String> {
+    fn seek(&mut self, _: io::SeekFrom) -> Result<(), String> {
         return Err("This port doesn't support seeking".to_string());
     }
 }
