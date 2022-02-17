@@ -3,6 +3,7 @@ use super::eval::{eval_call, Scope, ValRef};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::io;
 
 fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() {
@@ -315,6 +316,76 @@ fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
 }
 
+fn lib_read(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 1 && args.len() != 2 {
+        return Err("'read' requires 1 or 2 arguments".to_string());
+    }
+
+    let port = match &args[0] {
+        ValRef::Port(port) => port,
+        _ => return Err("'read' requires the first argument to be a port".to_string()),
+    };
+
+    if args.len() == 1 {
+        port.borrow_mut().read()
+    } else {
+        let size = match args[1] {
+            ValRef::Number(num) => num,
+            _ => return Err("'read' requires the second argument to be a number".to_string()),
+        };
+        port.borrow_mut().read_chunk(size as usize)
+    }
+}
+
+fn lib_write(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 2 {
+        return Err("'write' requires 2 arguments".to_string());
+    }
+
+    let port = match &args[0] {
+        ValRef::Port(port) => port,
+        _ => return Err("'write' requires the first argument to be a port".to_string()),
+    };
+
+    port.borrow_mut().write(&args[1])?;
+    Ok(ValRef::None)
+}
+
+fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 2 && args.len() != 3 {
+        return Err("'seek' requires 2 or 3 arguments".to_string());
+    }
+
+    let port = match &args[0] {
+        ValRef::Port(port) => port,
+        _ => return Err("'seek' requires the first argument to be a port".to_string()),
+    };
+
+    let num = match &args[1] {
+        ValRef::Number(num) => *num,
+        _ => return Err("'seek' requires the second argument to be a number".to_string()),
+    };
+
+    let pos = if args.len() == 2 {
+        io::SeekFrom::Start(num as u64)
+    } else {
+        let name = match &args[2] {
+            ValRef::String(s) => s.as_ref(),
+            _ => return Err("'seek' requires the third argument to be a string".to_string()),
+        };
+
+        match name.as_str() {
+            "set" => io::SeekFrom::Start(num as u64),
+            "end" => io::SeekFrom::End(num as i64),
+            "current" => io::SeekFrom::Current(num as i64),
+            _ => return Err("'seek' requires the seek offset to be 'set', 'end' or 'current'".to_string()),
+        }
+    };
+
+    port.borrow_mut().seek(pos)?;
+    Ok(ValRef::None)
+}
+
 pub fn init(scope: &Rc<RefCell<Scope>>) {
     scope.borrow_mut().put_func("print", Rc::new(lib_print));
     scope.borrow_mut().put_func("+", Rc::new(lib_add));
@@ -338,4 +409,7 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     scope.borrow_mut().put_func("list", Rc::new(lib_list));
     scope.borrow_mut().put_func("map", Rc::new(lib_map));
     scope.borrow_mut().put_func("lazy", Rc::new(lib_lazy));
+    scope.borrow_mut().put_func("read", Rc::new(lib_read));
+    scope.borrow_mut().put_func("write", Rc::new(lib_write));
+    scope.borrow_mut().put_func("seek", Rc::new(lib_seek));
 }

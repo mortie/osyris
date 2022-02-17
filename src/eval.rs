@@ -5,8 +5,27 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 use std::any::Any;
+use std::io;
 
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
+
+pub trait PortVal {
+    fn read(&mut self) -> Result<ValRef, String> {
+        return Err("This port doesn't support reading".to_string());
+    }
+
+    fn read_chunk(&mut self, size: usize) -> Result<ValRef, String> {
+        return Err("This port doesn't support reading chunks".to_string());
+    }
+
+    fn write(&mut self, val: &ValRef) -> Result<(), String> {
+        return Err("This port doesn't support writing".to_string());
+    }
+
+    fn seek(&mut self, pos: io::SeekFrom) -> Result<(), String> {
+        return Err("This port doesn't support seeking".to_string());
+    }
+}
 
 pub enum ValRef {
     None,
@@ -19,6 +38,7 @@ pub enum ValRef {
     Lazy(Rc<ValRef>),
     ProtectedLazy(Rc<ValRef>),
     Native(Rc<dyn Any>),
+    Port(Rc<RefCell<dyn PortVal>>),
 }
 
 impl ValRef {
@@ -63,6 +83,7 @@ impl Clone for ValRef {
             Self::Lazy(val) => Self::Lazy(val.clone()),
             Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
             Self::Native(n) => Self::Native(n.clone()),
+            Self::Port(p) => Self::Port(p.clone()),
         }
     }
 }
@@ -113,10 +134,11 @@ impl fmt::Display for ValRef {
                 }
                 write!(f, "]")
             }
-            Self::Func(_) => write!(f, "(func)"),
+            Self::Func(func) => write!(f, "(func {:p})", func.as_ref()),
             Self::Lazy(val) => write!(f, "(lazy {})", val),
             Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
             Self::Native(n) => write!(f, "(native {:p})", n.as_ref()),
+            Self::Port(p) => write!(f, "(port {:p})", p.as_ref()),
         }
     }
 }
