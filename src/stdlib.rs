@@ -387,6 +387,7 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
 }
 
 pub fn init(scope: &Rc<RefCell<Scope>>) {
+    scope.borrow_mut().put("none", ValRef::None);
     scope.borrow_mut().put_func("print", Rc::new(lib_print));
     scope.borrow_mut().put_func("+", Rc::new(lib_add));
     scope.borrow_mut().put_func("-", Rc::new(lib_sub));
