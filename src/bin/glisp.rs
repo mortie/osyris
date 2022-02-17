@@ -1,4 +1,4 @@
-use glisp::{eval, parse, stdlib};
+use glisp::{eval, parse, stdlib, iolib};
 use std::cell::RefCell;
 use std::env;
 use std::fs;
@@ -28,6 +28,7 @@ fn main() {
 
     let scope = Rc::new(RefCell::new(eval::Scope::new(None)));
     stdlib::init(&scope);
+    iolib::init(&scope);
 
     loop {
         let expr = match parse::parse(&mut reader) {
