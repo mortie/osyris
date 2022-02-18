@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "glisp"
+name = "osyris"
 version = "0.1.0"
