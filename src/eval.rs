@@ -68,6 +68,13 @@ impl ValRef {
             _ => false,
         }
     }
+
+    pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+        match self {
+            ValRef::Quote(func) => eval_call(func, scope),
+            val => Ok(val.clone()),
+        }
+    }
 }
 
 impl Clone for ValRef {

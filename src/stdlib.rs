@@ -199,10 +199,28 @@ fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
         return Ok(ValRef::None);
     }
 
-    match expr {
-        ValRef::Quote(func) => eval_call(func, scope),
-        val => Ok(val.clone()),
+    expr.call_or_get(scope)
+}
+
+fn lib_match(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    let mut idx = 0;
+    while idx < args.len() {
+        // If we hit the last argument, that's the default case
+        if idx == args.len() - 1 {
+            return args[idx].call_or_get(scope);
+        }
+
+        let cond = &args[idx].call_or_get(scope)?;
+        idx += 1;
+        let body = &args[idx];
+        idx += 1;
+
+        if cond.to_bool() {
+            return body.call_or_get(scope);
+        }
     }
+
+    Ok(ValRef::None)
 }
 
 fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -404,6 +422,7 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     scope.borrow_mut().put_func("def", Rc::new(lib_def));
     scope.borrow_mut().put_func("set", Rc::new(lib_set));
     scope.borrow_mut().put_func("if", Rc::new(lib_if));
+    scope.borrow_mut().put_func("match", Rc::new(lib_match));
     scope.borrow_mut().put_func("while", Rc::new(lib_while));
     scope.borrow_mut().put_func("do", Rc::new(lib_do));
     scope.borrow_mut().put_func("bind", Rc::new(lib_bind));
