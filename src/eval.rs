@@ -1,11 +1,11 @@
 use super::ast;
 
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
-use std::rc::Rc;
-use std::any::Any;
 use std::io;
+use std::rc::Rc;
 
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
@@ -235,7 +235,7 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
         }
         ValRef::Map(map) => {
             if args.len() != 1 {
-                return Err("Map lookup requires exactly 1 argument".to_string())
+                return Err("Map lookup requires exactly 1 argument".to_string());
             }
 
             let key = match &args[0] {

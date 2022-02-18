@@ -1,4 +1,4 @@
-use glisp::{eval, parse, stdlib, iolib};
+use glisp::{eval, iolib, parse, stdlib};
 use std::cell::RefCell;
 use std::env;
 use std::fs;

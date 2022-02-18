@@ -2,8 +2,8 @@ use super::eval::{eval_call, Scope, ValRef};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::io;
+use std::rc::Rc;
 
 fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() {
@@ -396,7 +396,11 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
             "set" => io::SeekFrom::Start(num as u64),
             "end" => io::SeekFrom::End(num as i64),
             "current" => io::SeekFrom::Current(num as i64),
-            _ => return Err("'seek' requires the seek offset to be 'set', 'end' or 'current'".to_string()),
+            _ => {
+                return Err(
+                    "'seek' requires the seek offset to be 'set', 'end' or 'current'".to_string(),
+                )
+            }
         }
     };
 
@@ -405,31 +409,32 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
 }
 
 pub fn init(scope: &Rc<RefCell<Scope>>) {
-    scope.borrow_mut().put("none", ValRef::None);
-    scope.borrow_mut().put_func("print", Rc::new(lib_print));
-    scope.borrow_mut().put_func("+", Rc::new(lib_add));
-    scope.borrow_mut().put_func("-", Rc::new(lib_sub));
-    scope.borrow_mut().put_func("*", Rc::new(lib_mul));
-    scope.borrow_mut().put_func("/", Rc::new(lib_div));
-    scope.borrow_mut().put_func("==", Rc::new(lib_equals));
-    scope.borrow_mut().put_func("!=", Rc::new(lib_nequals));
-    scope.borrow_mut().put_func("<=", Rc::new(lib_lteq));
-    scope.borrow_mut().put_func("<", Rc::new(lib_lt));
-    scope.borrow_mut().put_func(">=", Rc::new(lib_gteq));
-    scope.borrow_mut().put_func(">", Rc::new(lib_gt));
-    scope.borrow_mut().put_func("||", Rc::new(lib_or));
-    scope.borrow_mut().put_func("&&", Rc::new(lib_and));
-    scope.borrow_mut().put_func("def", Rc::new(lib_def));
-    scope.borrow_mut().put_func("set", Rc::new(lib_set));
-    scope.borrow_mut().put_func("if", Rc::new(lib_if));
-    scope.borrow_mut().put_func("match", Rc::new(lib_match));
-    scope.borrow_mut().put_func("while", Rc::new(lib_while));
-    scope.borrow_mut().put_func("do", Rc::new(lib_do));
-    scope.borrow_mut().put_func("bind", Rc::new(lib_bind));
-    scope.borrow_mut().put_func("list", Rc::new(lib_list));
-    scope.borrow_mut().put_func("map", Rc::new(lib_map));
-    scope.borrow_mut().put_func("lazy", Rc::new(lib_lazy));
-    scope.borrow_mut().put_func("read", Rc::new(lib_read));
-    scope.borrow_mut().put_func("write", Rc::new(lib_write));
-    scope.borrow_mut().put_func("seek", Rc::new(lib_seek));
+    let mut s = scope.borrow_mut();
+    s.put("none", ValRef::None);
+    s.put_func("print", Rc::new(lib_print));
+    s.put_func("+", Rc::new(lib_add));
+    s.put_func("-", Rc::new(lib_sub));
+    s.put_func("*", Rc::new(lib_mul));
+    s.put_func("/", Rc::new(lib_div));
+    s.put_func("==", Rc::new(lib_equals));
+    s.put_func("!=", Rc::new(lib_nequals));
+    s.put_func("<=", Rc::new(lib_lteq));
+    s.put_func("<", Rc::new(lib_lt));
+    s.put_func(">=", Rc::new(lib_gteq));
+    s.put_func(">", Rc::new(lib_gt));
+    s.put_func("||", Rc::new(lib_or));
+    s.put_func("&&", Rc::new(lib_and));
+    s.put_func("def", Rc::new(lib_def));
+    s.put_func("set", Rc::new(lib_set));
+    s.put_func("if", Rc::new(lib_if));
+    s.put_func("match", Rc::new(lib_match));
+    s.put_func("while", Rc::new(lib_while));
+    s.put_func("do", Rc::new(lib_do));
+    s.put_func("bind", Rc::new(lib_bind));
+    s.put_func("list", Rc::new(lib_list));
+    s.put_func("map", Rc::new(lib_map));
+    s.put_func("lazy", Rc::new(lib_lazy));
+    s.put_func("read", Rc::new(lib_read));
+    s.put_func("write", Rc::new(lib_write));
+    s.put_func("seek", Rc::new(lib_seek));
 }

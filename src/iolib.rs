@@ -1,11 +1,11 @@
-use super::eval::{Scope, ValRef, PortVal};
+use super::eval::{PortVal, Scope, ValRef};
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::fs;
 use std::io;
 use std::io::Read;
-use std::io::Write;
 use std::io::Seek;
+use std::io::Write;
+use std::rc::Rc;
 
 struct TextFile {
     f: fs::File,
@@ -57,7 +57,7 @@ pub fn lib_open(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
         Err(err) => return Err(format!("'open': {}: {}", path, err)),
     };
 
-    Ok(ValRef::Port(Rc::new(RefCell::new(TextFile{f}))))
+    Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
 }
 
 pub fn lib_create(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -75,10 +75,11 @@ pub fn lib_create(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
         Err(err) => return Err(format!("'create': {}: {}", path, err)),
     };
 
-    Ok(ValRef::Port(Rc::new(RefCell::new(TextFile{f}))))
+    Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
 }
 
 pub fn init(scope: &Rc<RefCell<Scope>>) {
-    scope.borrow_mut().put_func("open", Rc::new(lib_open));
-    scope.borrow_mut().put_func("create", Rc::new(lib_create));
+    let mut s = scope.borrow_mut();
+    s.put_func("open", Rc::new(lib_open));
+    s.put_func("create", Rc::new(lib_create));
 }
