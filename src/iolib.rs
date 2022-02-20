@@ -6,6 +6,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
 use std::rc::Rc;
+use std::process::{Command, Child, Stdio};
 
 struct TextFile {
     f: fs::File,
@@ -78,8 +79,72 @@ pub fn lib_create(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
     Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
 }
 
+struct ChildProc {
+    c: Child,
+}
+
+impl PortVal for ChildProc {
+    fn read(&mut self) -> Result<ValRef, String> {
+        let stdout = match &mut self.c.stdout {
+            Some(stdout) => stdout,
+            None => return Err("Child proc has no stdout".to_string()),
+        };
+
+        let mut buf = String::new();
+        match stdout.read_to_string(&mut buf) {
+            Ok(_) => (),
+            Err(err) => return Err(err.to_string()),
+        };
+
+        Ok(ValRef::String(Rc::new(buf)))
+    }
+
+    fn write(&mut self, val: &ValRef) -> Result<(), String> {
+        let stdin = match &mut self.c.stdin {
+            Some(stdin) => stdin,
+            None => return Err("Child proc has no stdin".to_string()),
+        };
+
+        let res = match val {
+            ValRef::String(s) => stdin.write(s.as_bytes()),
+            val => stdin.write(format!("{}", val).as_bytes()),
+        };
+
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+}
+
+pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 1 {
+        return Err("'exec' requires at least 1 argument".to_string());
+    }
+
+    let name = match &args[0] {
+        ValRef::String(s) => s,
+        _ => return Err("'exec' requires its arguments to be strings".to_string()),
+    };
+
+    let mut cmd = Command::new(name.as_ref());
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
+    for idx in 1..args.len() {
+        match &args[idx] {
+            ValRef::String(s) => cmd.arg(s.as_ref()),
+            _ => return Err("'exec' requires its arguments to be strings".to_string()),
+        };
+    }
+
+    match cmd.spawn() {
+        Err(err) => Err(format!("exec: {}", err)),
+        Ok(child) => Ok(ValRef::Port(Rc::new(RefCell::new(ChildProc { c: child })))),
+    }
+}
+
 pub fn init(scope: &Rc<RefCell<Scope>>) {
     let mut s = scope.borrow_mut();
     s.put_func("open", Rc::new(lib_open));
     s.put_func("create", Rc::new(lib_create));
+    s.put_func("exec", Rc::new(lib_exec));
 }
