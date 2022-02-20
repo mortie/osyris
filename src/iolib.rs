@@ -118,7 +118,7 @@ impl PortVal for ChildProc {
 }
 
 pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    if args.len() != 1 {
+    if args.len() < 1 {
         return Err("'exec' requires at least 1 argument".to_string());
     }
 
