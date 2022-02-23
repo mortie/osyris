@@ -162,9 +162,16 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn new(parent: Option<Rc<RefCell<Scope>>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            parent,
+            parent: None,
+            map: HashMap::new(),
+        }
+    }
+
+    pub fn new_with_parent(parent: Rc<RefCell<Scope>>) -> Self {
+        Self {
+            parent: Some(parent),
             map: HashMap::new(),
         }
     }
@@ -212,7 +219,7 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
     match func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => {
-            let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
+            let s = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             s.borrow_mut()
                 .insert("args".to_string(), ValRef::List(Rc::new(args)));
             eval_call(exprs.as_ref(), &s)
@@ -277,7 +284,7 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
             func(args, scope)
         }
         ValRef::Quote(exprs) => {
-            let s = Rc::new(RefCell::new(Scope::new(Some(scope.clone()))));
+            let s = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
             let mut retval = ValRef::None;
             for expr in exprs.as_ref() {

@@ -322,7 +322,7 @@ fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::List(Rc::new(args)))
 }
 
-fn lib_map(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() % 2 != 0 {
         return Err("'map' requires an even number of arguments".to_string());
     }
@@ -453,7 +453,7 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     s.put_func("bind", Rc::new(lib_bind));
     s.put_func("with", Rc::new(lib_with));
     s.put_func("list", Rc::new(lib_list));
-    s.put_func("map", Rc::new(lib_map));
+    s.put_func("dict", Rc::new(lib_dict));
     s.put_func("lazy", Rc::new(lib_lazy));
     s.put_func("read", Rc::new(lib_read));
     s.put_func("write", Rc::new(lib_write));

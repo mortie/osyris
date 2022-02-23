@@ -26,7 +26,7 @@ fn main() {
 
     let mut reader = parse::Reader::new(&string.as_bytes());
 
-    let scope = Rc::new(RefCell::new(eval::Scope::new(None)));
+    let scope = Rc::new(RefCell::new(eval::Scope::new()));
     stdlib::init(&scope);
     iolib::init(&scope);
 
