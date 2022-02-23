@@ -274,13 +274,12 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     };
 
     let mut argidx = 0;
-    let mut retval = ValRef::None;
-    for idx in 1..args.len() {
+    for idx in 1..args.len() - 1 {
         let arg = &args[idx];
         match arg {
             ValRef::String(name) => {
                 if argidx >= vals.len() {
-                    return Err("Wrong argument count".to_string());
+                    return Err("'bind': Wrong argument count".to_string());
                 }
 
                 scope
@@ -288,14 +287,35 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
                     .insert(name.as_ref().clone(), vals[argidx].clone());
                 argidx += 1;
             }
-            ValRef::Quote(q) => {
-                retval = eval_call(q.as_ref(), scope)?;
-            }
-            _ => return Err("'bind' expects strings and quotes only".to_string()),
+            _ => return Err("'bind' expects strings only".to_string()),
         }
     }
 
-    Ok(retval)
+    match &args[args.len() - 1] {
+        ValRef::Quote(q) => eval_call(q.as_ref(), scope),
+        _ => return Err("'bind' expects its last argument to be a quote".to_string()),
+    }
+}
+
+fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    let mut idx = 0;
+    while idx < args.len() - 1 {
+        let name = match &args[idx] {
+            ValRef::String(s) => s,
+            _ => return Err("'with' requires names to be string".to_string()),
+        };
+
+        idx += 1;
+        let val = &args[idx];
+        idx += 1;
+
+        scope.borrow_mut().insert(name.as_ref().clone(), val.clone());
+    }
+
+    match &args[args.len() - 1] {
+        ValRef::Quote(q) => eval_call(q.as_ref(), scope),
+        _ => return Err("'bind' expects its last argument to be a quote".to_string()),
+    }
 }
 
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -431,6 +451,7 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     s.put_func("while", Rc::new(lib_while));
     s.put_func("do", Rc::new(lib_do));
     s.put_func("bind", Rc::new(lib_bind));
+    s.put_func("with", Rc::new(lib_with));
     s.put_func("list", Rc::new(lib_list));
     s.put_func("map", Rc::new(lib_map));
     s.put_func("lazy", Rc::new(lib_lazy));
