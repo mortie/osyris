@@ -65,7 +65,7 @@ fn is_space(ch: u8) -> bool {
 }
 
 fn is_separator(ch: u8) -> bool {
-    return is_space(ch) || ch == b')' || ch == b'}';
+    return is_space(ch) || ch == b')' || ch == b'}' || ch == b'.';
 }
 
 fn skip_space<'a>(r: &mut Reader<'a>) {
@@ -223,17 +223,36 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
     }
 
     let ch = r.peek();
-    if ch == b'"' {
-        Ok(Some(parse_string(r)?))
+    let mut base = if ch == b'"' {
+        parse_string(r)?
     } else if ch >= b'0' && ch <= b'9' {
-        Ok(Some(parse_number(r)?))
+        parse_number(r)?
     } else if ch == b'\'' {
-        Ok(Some(parse_quote(r)?))
+        parse_quote(r)?
     } else if ch == b'(' {
-        Ok(Some(parse_call(r)?))
+        parse_call(r)?
     } else if ch == b'{' {
-        Ok(Some(parse_braced(r)?))
+        parse_braced(r)?
     } else {
-        Ok(Some(parse_lookup(r)?))
+        parse_lookup(r)?
+    };
+
+    skip_space(r);
+    if r.eof() {
+        return Ok(Some(base));
     }
+
+    loop {
+        let ch = r.peek();
+        if ch == b'.' {
+            r.consume();
+            skip_space(r);
+            let name = read_name(r)?;
+            base = ast::Expression::Call(vec!(base, ast::Expression::String(name)));
+        } else {
+            break;
+        }
+    }
+
+    Ok(Some(base))
 }
