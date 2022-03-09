@@ -309,7 +309,9 @@ fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
         let val = &args[idx];
         idx += 1;
 
-        scope.borrow_mut().insert(name.as_ref().clone(), val.clone());
+        scope
+            .borrow_mut()
+            .insert(name.as_ref().clone(), val.clone());
     }
 
     match &args[args.len() - 1] {

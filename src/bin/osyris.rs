@@ -1,4 +1,4 @@
-use osyris::{eval, iolib, parse, stdlib};
+use osyris::{eval, importlib, iolib, parse, stdlib};
 use std::cell::RefCell;
 use std::env;
 use std::fs;
@@ -29,6 +29,7 @@ fn main() {
     let scope = Rc::new(RefCell::new(eval::Scope::new()));
     stdlib::init(&scope);
     iolib::init(&scope);
+    importlib::init_with_path(&scope, &path);
 
     loop {
         let expr = match parse::parse(&mut reader) {

@@ -5,8 +5,8 @@ use std::io;
 use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
+use std::process::{Child, Command, Stdio};
 use std::rc::Rc;
-use std::process::{Command, Child, Stdio};
 
 struct TextFile {
     f: fs::File,
