@@ -65,7 +65,11 @@ fn is_space(ch: u8) -> bool {
 }
 
 fn is_separator(ch: u8) -> bool {
-    return is_space(ch) || ch == b')' || ch == b'}' || ch == b'.';
+    return is_space(ch) ||
+        ch == b'(' || ch == b')' ||
+        ch == b'{' || ch == b'}' ||
+        ch == b'[' || ch == b']' ||
+        ch == b'.';
 }
 
 fn skip_space<'a>(r: &mut Reader<'a>) {
@@ -249,6 +253,14 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
             skip_space(r);
             let name = read_name(r)?;
             base = ast::Expression::Call(vec!(base, ast::Expression::String(name)));
+        } else if ch == b'[' {
+            let args = parse_list(r, b']')?;
+            let mut exprs = vec!(base);
+            for arg in args {
+                exprs.push(arg);
+            }
+
+            base = ast::Expression::Call(exprs);
         } else {
             break;
         }
