@@ -299,8 +299,14 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
         if ch == b'.' {
             r.consume();
             skip_space(r);
-            let name = read_name(r)?;
-            base = ast::Expression::Call(vec!(base, ast::Expression::String(name)));
+            let ch = r.peek();
+            if ch >= b'0' && ch <= b'9' {
+                let num = parse_number(r)?;
+                base = ast::Expression::Call(vec!(base, num));
+            } else {
+                let name = read_name(r)?;
+                base = ast::Expression::Call(vec!(base, ast::Expression::String(name)));
+            }
         } else if ch == b'[' {
             let args = parse_list(r, b']')?;
             let mut exprs = vec!(base);
