@@ -29,7 +29,8 @@ pub trait PortVal {
 
 pub enum ValRef {
     None,
-    Number(i32),
+    Number(f64),
+    Bool(bool),
     String(Rc<String>),
     Quote(Rc<Vec<ast::Expression>>),
     List(Rc<Vec<ValRef>>),
@@ -44,16 +45,16 @@ pub enum ValRef {
 impl ValRef {
     pub fn to_bool(&self) -> bool {
         match self {
-            ValRef::Number(0) => false,
-            ValRef::None => false,
+            ValRef::Bool(false) => false,
             _ => true,
         }
     }
 
-    pub fn to_num(&self) -> i32 {
+    pub fn to_num(&self) -> f64 {
         match self {
             ValRef::Number(num) => *num,
-            _ => 0,
+            ValRef::Bool(b) => if *b { 1f64 } else { 0.0 },
+            _ => 0.0,
         }
     }
 
@@ -82,6 +83,7 @@ impl Clone for ValRef {
         match self {
             Self::None => Self::None,
             Self::Number(num) => Self::Number(*num),
+            Self::Bool(b) => Self::Bool(*b),
             Self::String(s) => Self::String(s.clone()),
             Self::Quote(q) => Self::Quote(q.clone()),
             Self::List(l) => Self::List(l.clone()),
@@ -114,6 +116,7 @@ impl fmt::Display for ValRef {
         match self {
             Self::None => write!(f, "None"),
             Self::Number(num) => write!(f, "{}", num),
+            Self::Bool(b) => write!(f, "{}", b),
             Self::String(s) => write_string(f, s.as_ref()),
             Self::Quote(q) => write!(f, "{:?}", q),
             Self::Map(m) => {
@@ -234,7 +237,7 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
                 _ => return Err("Attempt to index array with non-number".to_string()),
             };
 
-            if idx as usize > list.len() || idx < 0 {
+            if idx as usize > list.len() || idx < 0.0 {
                 Ok(ValRef::None)
             } else {
                 Ok(list.as_ref()[idx as usize].clone())

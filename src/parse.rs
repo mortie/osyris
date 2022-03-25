@@ -155,24 +155,72 @@ fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     Err(r.err("Unexpected EOF".to_string()))
 }
 
-fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
-    let mut num: i32 = 0;
+fn parse_digit(ch: u8, base: u8) -> Result<u8, ()> {
+    let num;
+    if ch >= b'0' && ch <= b'9' {
+        num = ch - b'0';
+    } else if ch >= b'a' && ch <= b'z' {
+        num = ch - b'a' + 10;
+    } else if ch >= b'A' && ch <= b'Z' {
+        num = ch - b'A' + 10;
+    } else {
+        return Err(());
+    }
+
+    if num >= base {
+        return Err(());
+    }
+
+    Ok(num)
+}
+
+fn parse_int<'a>(r: &mut Reader<'a>, base: u8) -> (u64, u64) {
+    let mut int: u64 = 0;
+    let mut div: u64 = 1;
     while !r.eof() {
         let ch = r.peek();
-        if ch >= b'0' && ch <= b'9' {
-            num *= 10;
-            num += (ch - b'0') as i32;
-            r.consume();
-        } else {
-            break;
+        let digit = match parse_digit(ch, base) {
+            Ok(d) => d,
+            Err(..) => break,
+        };
+        div *= base as u64;
+        int *= base as u64;
+        int += digit as u64;
+        r.consume();
+    }
+
+    return (int, div);
+}
+
+fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+    let mut base = 10u8;
+    let (mut integral, _) = parse_int(r, 10);
+    let mut decimal = 0.0;
+    if r.eof() {
+        return Ok(ast::Expression::Number(integral as f64));
+    }
+
+    if r.peek() == b'#' {
+        r.consume();
+        if integral > 36 {
+            return Err(r.err(format!("Number literal: Max base is 36, got {}", integral)));
         }
+
+        base = integral as u8;
+        integral = parse_int(r, base).0;
+    }
+
+    if r.peek() == b'.' {
+        r.consume();
+        let (i, div) = parse_int(r, base);
+        decimal = (i as f64) / (div as f64);
     }
 
     if !r.eof() && !is_separator(r.peek()) {
         return Err(r.err("Invalid number literal".to_string()));
     }
 
-    Ok(ast::Expression::Number(num))
+    Ok(ast::Expression::Number(integral as f64 + decimal))
 }
 
 fn parse_list<'a>(r: &mut Reader<'a>, closer: u8) -> Result<Vec<ast::Expression>, ParseError> {

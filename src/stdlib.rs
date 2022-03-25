@@ -22,7 +22,7 @@ fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String
 
 fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
-        return Ok(ValRef::Number(0));
+        return Ok(ValRef::Number(0.0));
     }
 
     let mut num = args[0].to_num();
@@ -35,7 +35,7 @@ fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
 
 fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
-        return Ok(ValRef::Number(0));
+        return Ok(ValRef::Number(0.0));
     }
 
     let mut num = args[0].to_num();
@@ -48,7 +48,7 @@ fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
 
 fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
-        return Ok(ValRef::Number(0));
+        return Ok(ValRef::Number(0.0));
     }
 
     let mut num = args[0].to_num();
@@ -61,7 +61,7 @@ fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
 
 fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
-        return Ok(ValRef::Number(0));
+        return Ok(ValRef::Number(0.0));
     }
 
     let mut num = args[0].to_num();
@@ -74,22 +74,22 @@ fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
 
 fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() <= 1 {
-        return Ok(ValRef::Number(1));
+        return Ok(ValRef::Bool(true));
     }
 
     for idx in 0..args.len() - 1 {
         if !ValRef::equals(&args[idx], &args[idx + 1]) {
-            return Ok(ValRef::Number(0));
+            return Ok(ValRef::Bool(false));
         }
     }
 
-    Ok(ValRef::Number(1))
+    Ok(ValRef::Bool(true))
 }
 
 fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match lib_equals(args, scope) {
-        Ok(ValRef::Number(1)) => Ok(ValRef::Number(0)),
-        Ok(ValRef::Number(0)) => Ok(ValRef::Number(1)),
+        Ok(ValRef::Bool(true)) => Ok(ValRef::Bool(false)),
+        Ok(ValRef::Bool(false)) => Ok(ValRef::Bool(true)),
         val => val,
     }
 }
@@ -97,41 +97,41 @@ fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
 fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() > args[idx + 1].to_num() {
-            return Ok(ValRef::Number(0));
+            return Ok(ValRef::Bool(false));
         }
     }
 
-    Ok(ValRef::Number(1))
+    Ok(ValRef::Bool(true))
 }
 
 fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() >= args[idx + 1].to_num() {
-            return Ok(ValRef::Number(0));
+            return Ok(ValRef::Bool(false));
         }
     }
 
-    Ok(ValRef::Number(1))
+    Ok(ValRef::Bool(true))
 }
 
 fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() < args[idx + 1].to_num() {
-            return Ok(ValRef::Number(0));
+            return Ok(ValRef::Bool(false));
         }
     }
 
-    Ok(ValRef::Number(1))
+    Ok(ValRef::Bool(true))
 }
 
 fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() <= args[idx + 1].to_num() {
-            return Ok(ValRef::Number(0));
+            return Ok(ValRef::Bool(false));
         }
     }
 
-    Ok(ValRef::Number(1))
+    Ok(ValRef::Bool(true))
 }
 
 fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -433,6 +433,8 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
 pub fn init(scope: &Rc<RefCell<Scope>>) {
     let mut s = scope.borrow_mut();
     s.put("none", ValRef::None);
+    s.put("false", ValRef::Bool(false));
+    s.put("true", ValRef::Bool(true));
     s.put_func("print", Rc::new(lib_print));
     s.put_func("+", Rc::new(lib_add));
     s.put_func("-", Rc::new(lib_sub));
