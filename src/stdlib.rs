@@ -154,6 +154,17 @@ fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(args[args.len() - 1].clone())
 }
 
+fn lib_first(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    for arg in &args {
+        match arg {
+            ValRef::None => (),
+            _ => return Ok(arg.clone()),
+        }
+    }
+
+    Ok(ValRef::None)
+}
+
 fn lib_def(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 {
         return Err("'def' requires 2 arguments".to_string());
@@ -448,6 +459,7 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     s.put_func(">", Rc::new(lib_gt));
     s.put_func("||", Rc::new(lib_or));
     s.put_func("&&", Rc::new(lib_and));
+    s.put_func("??", Rc::new(lib_first));
     s.put_func("def", Rc::new(lib_def));
     s.put_func("set", Rc::new(lib_set));
     s.put_func("if", Rc::new(lib_if));
