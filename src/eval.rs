@@ -53,7 +53,13 @@ impl ValRef {
     pub fn to_num(&self) -> f64 {
         match self {
             ValRef::Number(num) => *num,
-            ValRef::Bool(b) => if *b { 1f64 } else { 0.0 },
+            ValRef::Bool(b) => {
+                if *b {
+                    1f64
+                } else {
+                    0.0
+                }
+            }
             _ => 0.0,
         }
     }
