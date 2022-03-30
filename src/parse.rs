@@ -249,6 +249,38 @@ fn parse_list<'a>(r: &mut Reader<'a>, closer: u8) -> Result<Vec<ast::Expression>
     Ok(exprs)
 }
 
+fn parse_infix<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+    r.consume(); // '['
+
+    let mut lhs = match parse(r)? {
+        Some(expr) => expr,
+        None => return Err(r.err("Unexpected EOF".into())),
+    };
+
+    loop {
+        skip_space(r);
+
+        if r.peek() == b']' {
+            r.consume();
+            break;
+        }
+
+        let infix = match parse(r)? {
+            Some(expr) => expr,
+            None => return Err(r.err("Unexpected EOF".to_string())),
+        };
+
+        let rhs = match parse(r)? {
+            Some(expr) => expr,
+            None => return Err(r.err("Unexpected EOF".to_string())),
+        };
+
+        lhs = ast::Expression::Call(vec![infix, lhs, rhs]);
+    }
+
+    Ok(lhs)
+}
+
 fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '\''
     if r.peek() == b'(' {
@@ -288,6 +320,8 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
         parse_call(r)?
     } else if ch == b'{' {
         parse_braced(r)?
+    } else if ch == b'[' {
+        parse_infix(r)?
     } else {
         parse_lookup(r)?
     };
@@ -306,18 +340,16 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
             if ch >= b'0' && ch <= b'9' {
                 let num = parse_number(r)?;
                 base = ast::Expression::Call(vec![base, num]);
+            } else if ch == b'[' {
+                let arg = parse_infix(r)?;
+                base = ast::Expression::Call(vec![base, arg]);
+            } else if ch == b'(' {
+                let arg = parse_call(r)?;
+                base = ast::Expression::Call(vec![base, arg]);
             } else {
                 let name = read_name(r)?;
                 base = ast::Expression::Call(vec![base, ast::Expression::String(name)]);
             }
-        } else if ch == b'[' {
-            let args = parse_list(r, b']')?;
-            let mut exprs = vec![base];
-            for arg in args {
-                exprs.push(arg);
-            }
-
-            base = ast::Expression::Call(exprs);
         } else {
             break;
         }
