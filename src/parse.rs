@@ -326,12 +326,12 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
         parse_lookup(r)?
     };
 
-    skip_space(r);
-    if r.eof() {
-        return Ok(Some(base));
-    }
-
     loop {
+        skip_space(r);
+        if r.eof() {
+            return Ok(Some(base));
+        }
+
         let ch = r.peek();
         if ch == b'.' {
             r.consume();
