@@ -1,3 +1,4 @@
+use super::bstring::BString;
 use super::eval::{eval_call, Scope, ValRef};
 
 use std::cell::RefCell;
@@ -331,34 +332,6 @@ fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     }
 }
 
-fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    Ok(ValRef::List(Rc::new(args)))
-}
-
-fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    if args.len() % 2 != 0 {
-        return Err("'map' requires an even number of arguments".to_string());
-    }
-
-    let mut map: HashMap<String, ValRef> = HashMap::new();
-    let mut idx = 0;
-    while idx < args.len() {
-        let key = &args[idx];
-        idx += 1;
-        let val = &args[idx];
-        idx += 1;
-
-        let keystr = match key {
-            ValRef::String(s) => s,
-            _ => return Err("'map' requires keys to be strings".to_string()),
-        };
-
-        map.insert(keystr.as_ref().clone(), val.clone());
-    }
-
-    Ok(ValRef::Map(Rc::new(map)))
-}
-
 fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 1 {
         return Err("'lazy' requires 1 argument".to_string());
@@ -421,14 +394,14 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
         io::SeekFrom::Start(num as u64)
     } else {
         let name = match &args[2] {
-            ValRef::String(s) => s.as_ref(),
+            ValRef::String(s) => s,
             _ => return Err("'seek' requires the third argument to be a string".to_string()),
         };
 
-        match name.as_str() {
-            "set" => io::SeekFrom::Start(num as u64),
-            "end" => io::SeekFrom::End(num as i64),
-            "current" => io::SeekFrom::Current(num as i64),
+        match name.as_bytes() {
+            b"set" => io::SeekFrom::Start(num as u64),
+            b"end" => io::SeekFrom::End(num as i64),
+            b"current" => io::SeekFrom::Current(num as i64),
             _ => {
                 return Err(
                     "'seek' requires the seek offset to be 'set', 'end' or 'current'".to_string(),
@@ -439,6 +412,34 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
 
     port.borrow_mut().seek(pos)?;
     Ok(ValRef::None)
+}
+
+fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    Ok(ValRef::List(Rc::new(args)))
+}
+
+fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() % 2 != 0 {
+        return Err("'map' requires an even number of arguments".to_string());
+    }
+
+    let mut map: HashMap<BString, ValRef> = HashMap::new();
+    let mut idx = 0;
+    while idx < args.len() {
+        let key = &args[idx];
+        idx += 1;
+        let val = &args[idx];
+        idx += 1;
+
+        let keystr = match key {
+            ValRef::String(s) => s,
+            _ => return Err("'map' requires keys to be strings".to_string()),
+        };
+
+        map.insert(keystr.as_ref().clone(), val.clone());
+    }
+
+    Ok(ValRef::Map(Rc::new(map)))
 }
 
 pub fn init(scope: &Rc<RefCell<Scope>>) {
@@ -468,10 +469,12 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     s.put_func("do", Rc::new(lib_do));
     s.put_func("bind", Rc::new(lib_bind));
     s.put_func("with", Rc::new(lib_with));
-    s.put_func("list", Rc::new(lib_list));
-    s.put_func("dict", Rc::new(lib_dict));
     s.put_func("lazy", Rc::new(lib_lazy));
     s.put_func("read", Rc::new(lib_read));
     s.put_func("write", Rc::new(lib_write));
     s.put_func("seek", Rc::new(lib_seek));
+
+    s.put_func("list", Rc::new(lib_list));
+
+    s.put_func("dict", Rc::new(lib_dict));
 }

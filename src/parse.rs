@@ -1,4 +1,5 @@
 use super::ast;
+use super::bstring::BString;
 
 use std::rc::Rc;
 
@@ -96,7 +97,7 @@ fn skip_space<'a>(r: &mut Reader<'a>) {
     }
 }
 
-fn read_name<'a>(r: &mut Reader<'a>) -> Result<String, ParseError> {
+fn read_name<'a>(r: &mut Reader<'a>) -> Result<BString, ParseError> {
     let start = r.idx;
     while !r.eof() && !is_separator(r.peek()) {
         r.consume();
@@ -114,7 +115,7 @@ fn read_name<'a>(r: &mut Reader<'a>) -> Result<String, ParseError> {
         Ok(s) => s,
         Err(err) => return Err(r.err(format!("Invalid UTF-8: {}", err))),
     };
-    Ok(s.to_string())
+    Ok(BString::from_str(s))
 }
 
 fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
@@ -125,12 +126,12 @@ fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
         let ch = r.peek();
         if ch == b'"' {
             r.consume();
-            let s = match String::from_utf8(buf) {
-                Ok(s) => s,
+            let _ = match std::str::from_utf8(&buf) {
+                Ok(..) => (),
                 Err(err) => return Err(r.err(format!("Invalid UTF-8: {}", err))),
             };
 
-            return Ok(ast::Expression::String(s));
+            return Ok(ast::Expression::String(BString::from_vec(buf)));
         } else if ch == b'\\' {
             r.consume();
             if r.eof() {
@@ -144,7 +145,7 @@ fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
                 b'0' => b'\0',
                 b'"' => b'"',
                 b'\\' => b'\\',
-                ch => return Err(r.err(format!("Invalid escape sequence: \\{}", ch))),
+                ch => return Err(r.err(format!("Invalid escape sequence: \\{}", ch as char))),
             };
 
             buf.push(ch);

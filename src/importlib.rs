@@ -1,3 +1,4 @@
+use super::bstring::BString;
 use super::eval::{eval, Scope, ValRef};
 use super::parse;
 use std::cell::RefCell;
@@ -6,23 +7,22 @@ use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-pub struct CodeResult {
-    pub code: String,
-    pub cwd: String,
-}
-
 pub trait Import {
-    fn import(&mut self, ctx: &ImportCtx, name: &str) -> Result<ValRef, String>;
+    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, String>;
 }
 
 pub struct ImportCtx {
     pub importer: Rc<RefCell<dyn Import>>,
-    pub cwd: String,
+    pub cwd: BString,
     pub root_scope: Rc<RefCell<Scope>>,
 }
 
 impl ImportCtx {
-    fn new(importer: Rc<RefCell<dyn Import>>, cwd: String, root_scope: Rc<RefCell<Scope>>) -> Self {
+    fn new(
+        importer: Rc<RefCell<dyn Import>>,
+        cwd: BString,
+        root_scope: Rc<RefCell<Scope>>,
+    ) -> Self {
         Self {
             importer,
             cwd,
@@ -32,8 +32,8 @@ impl ImportCtx {
 }
 
 pub struct DefaultImporter {
-    cache: HashMap<String, ValRef>,
-    builtins: HashMap<String, ValRef>,
+    cache: HashMap<BString, ValRef>,
+    builtins: HashMap<BString, ValRef>,
 }
 
 impl DefaultImporter {
@@ -44,22 +44,22 @@ impl DefaultImporter {
         }
     }
 
-    pub fn add_builtin(&mut self, name: String, val: ValRef) {
+    pub fn add_builtin(&mut self, name: BString, val: ValRef) {
         self.builtins.insert(name, val);
     }
 }
 
 impl Import for DefaultImporter {
-    fn import(&mut self, ctx: &ImportCtx, name: &str) -> Result<ValRef, String> {
+    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, String> {
         if let Some(val) = self.builtins.get(name) {
             return Ok(val.clone());
         }
 
         let path: PathBuf;
-        if name.starts_with("/") {
-            path = PathBuf::from(name);
+        if name.starts_with(b"/") {
+            path = name.to_path();
         } else {
-            path = PathBuf::from(&ctx.cwd).join(name);
+            path = ctx.cwd.to_path().join(name.to_path());
         }
 
         let abspath = match fs::canonicalize(path) {
@@ -67,20 +67,14 @@ impl Import for DefaultImporter {
             Err(err) => return Err(err.to_string()),
         };
 
-        let pathstr = match abspath.to_str() {
-            Some(s) => s,
-            None => return Err(format!("Path contains invalid UTF-8: {:?}", abspath)),
-        };
+        let pathstr = BString::from_os_str(abspath.as_os_str());
 
         let mut absdir = abspath.clone();
         absdir.pop();
 
-        let dirstr = match absdir.to_str() {
-            Some(s) => s,
-            None => return Err(format!("Path contains invalid UTF-8: {:?}", absdir)),
-        };
+        let dirstr = BString::from_os_str(absdir.as_os_str());
 
-        if let Some(val) = self.cache.get(dirstr) {
+        if let Some(val) = self.cache.get(&dirstr) {
             return Ok(val.clone());
         }
 
@@ -93,7 +87,7 @@ impl Import for DefaultImporter {
 
         let childctx = Rc::new(ImportCtx::new(
             ctx.importer.clone(),
-            dirstr.to_string(),
+            dirstr,
             ctx.root_scope.clone(),
         ));
         init_with_importer(&scope, childctx);
@@ -121,13 +115,13 @@ impl Import for DefaultImporter {
             }
         }
 
-        self.cache.insert(pathstr.to_string(), ret.clone());
+        self.cache.insert(pathstr, ret.clone());
 
         Ok(ret)
     }
 }
 
-fn import(importctx: &Rc<ImportCtx>, name: &str) -> Result<ValRef, String> {
+fn import(importctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, String> {
     match importctx.importer.borrow_mut().import(importctx, name) {
         Ok(val) => Ok(val.clone()),
         Err(err) => Err(err),
@@ -157,7 +151,7 @@ pub fn init_with_importer(scope: &Rc<RefCell<Scope>>, ctx: Rc<ImportCtx>) {
     s.put_func("import", Rc::new(move |a, s| lib_import(&c, a, s)));
 }
 
-pub fn init_with_cwd(scope: &Rc<RefCell<Scope>>, cwd: String) {
+pub fn init_with_cwd(scope: &Rc<RefCell<Scope>>, cwd: BString) {
     init_with_importer(
         scope,
         Rc::new(ImportCtx::new(
@@ -168,9 +162,8 @@ pub fn init_with_cwd(scope: &Rc<RefCell<Scope>>, cwd: String) {
     )
 }
 
-pub fn init_with_path(scope: &Rc<RefCell<Scope>>, path: &str) {
-    let mut dirpath = PathBuf::from(path);
+pub fn init_with_path(scope: &Rc<RefCell<Scope>>, path: BString) {
+    let mut dirpath = path.to_path();
     dirpath.pop();
-    let cwd = dirpath.to_string_lossy().to_string();
-    init_with_cwd(scope, cwd.to_string());
+    init_with_cwd(scope, BString::from_os_str(dirpath.as_os_str()));
 }

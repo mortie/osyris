@@ -1,11 +1,12 @@
-use std::rc::Rc;
+use super::bstring::BString;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum Expression {
-    String(String),
+    String(BString),
     Number(f64),
-    Lookup(String),
+    Lookup(BString),
     Call(Vec<Expression>),
     Quote(Rc<Vec<Expression>>),
 }
@@ -15,10 +16,10 @@ impl fmt::Display for Expression {
         match self {
             Expression::String(s) => {
                 write!(f, "\"")?;
-                for ch in s.chars() {
-                    if ch == '\\' {
+                for ch in s {
+                    if *ch == b'\\' {
                         write!(f, "\\\\")?;
-                    } else if ch == '"' {
+                    } else if *ch == b'"' {
                         write!(f, "\\\"")?;
                     } else {
                         write!(f, "{}", ch)?;
