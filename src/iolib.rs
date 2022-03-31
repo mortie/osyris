@@ -1,3 +1,4 @@
+use super::bstring::BString;
 use super::eval::{PortVal, Scope, ValRef};
 use std::cell::RefCell;
 use std::fs;
@@ -14,13 +15,13 @@ struct TextFile {
 
 impl PortVal for TextFile {
     fn read(&mut self) -> Result<ValRef, String> {
-        let mut buf = String::new();
-        match self.f.read_to_string(&mut buf) {
+        let mut buf = Vec::new();
+        match self.f.read_to_end(&mut buf) {
             Ok(_) => (),
             Err(err) => return Err(err.to_string()),
         };
 
-        Ok(ValRef::String(Rc::new(buf)))
+        Ok(ValRef::String(Rc::new(BString::from_vec(buf))))
     }
 
     fn write(&mut self, val: &ValRef) -> Result<(), String> {
@@ -53,7 +54,7 @@ pub fn lib_open(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
         _ => return Err("'open' requires the first argument to be a string".to_string()),
     };
 
-    let f = match fs::File::open(path.as_ref()) {
+    let f = match fs::File::open(path.to_path()) {
         Ok(f) => f,
         Err(err) => return Err(format!("'open': {}: {}", path, err)),
     };
@@ -71,7 +72,7 @@ pub fn lib_create(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
         _ => return Err("'create' requires the first argument to be a string".to_string()),
     };
 
-    let f = match fs::File::create(path.as_ref()) {
+    let f = match fs::File::create(path.to_path()) {
         Ok(f) => f,
         Err(err) => return Err(format!("'create': {}: {}", path, err)),
     };
@@ -90,13 +91,13 @@ impl PortVal for ChildProc {
             None => return Err("Child proc has no stdout".to_string()),
         };
 
-        let mut buf = String::new();
-        match stdout.read_to_string(&mut buf) {
+        let mut buf = Vec::new();
+        match stdout.read_to_end(&mut buf) {
             Ok(_) => (),
             Err(err) => return Err(err.to_string()),
         };
 
-        Ok(ValRef::String(Rc::new(buf)))
+        Ok(ValRef::String(Rc::new(BString::from_vec(buf))))
     }
 
     fn write(&mut self, val: &ValRef) -> Result<(), String> {
@@ -127,11 +128,11 @@ pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
         _ => return Err("'exec' requires its arguments to be strings".to_string()),
     };
 
-    let mut cmd = Command::new(name.as_ref());
+    let mut cmd = Command::new(name.to_os_str());
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
     for idx in 1..args.len() {
         match &args[idx] {
-            ValRef::String(s) => cmd.arg(s.as_ref()),
+            ValRef::String(s) => cmd.arg(s.to_os_str()),
             _ => return Err("'exec' requires its arguments to be strings".to_string()),
         };
     }

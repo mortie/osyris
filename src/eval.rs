@@ -1,4 +1,5 @@
 use super::ast;
+use super::bstring::BString;
 
 use std::any::Any;
 use std::cell::RefCell;
@@ -31,10 +32,10 @@ pub enum ValRef {
     None,
     Number(f64),
     Bool(bool),
-    String(Rc<String>),
+    String(Rc<BString>),
     Quote(Rc<Vec<ast::Expression>>),
     List(Rc<Vec<ValRef>>),
-    Map(Rc<HashMap<String, ValRef>>),
+    Map(Rc<HashMap<BString, ValRef>>),
     Func(Rc<FuncVal>),
     Lazy(Rc<ValRef>),
     ProtectedLazy(Rc<ValRef>),
@@ -103,27 +104,13 @@ impl Clone for ValRef {
     }
 }
 
-pub fn write_string(f: &mut fmt::Formatter, s: &String) -> fmt::Result {
-    write!(f, "\"")?;
-    for ch in s.chars() {
-        if ch == '"' {
-            write!(f, "\\\"")?;
-        } else if ch == '\\' {
-            write!(f, "\\\\")?;
-        } else {
-            write!(f, "{}", ch)?;
-        }
-    }
-    write!(f, "\"")
-}
-
 impl fmt::Display for ValRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::None => write!(f, "None"),
             Self::Number(num) => write!(f, "{}", num),
             Self::Bool(b) => write!(f, "{}", b),
-            Self::String(s) => write_string(f, s.as_ref()),
+            Self::String(s) => write!(f, "{:?}", s),
             Self::Quote(q) => write!(f, "{:?}", q),
             Self::Map(m) => {
                 write!(f, "{{")?;
@@ -133,8 +120,7 @@ impl fmt::Display for ValRef {
                         write!(f, ", ")?;
                     }
 
-                    write_string(f, key)?;
-                    write!(f, ": {}", val)?;
+                    write!(f, "{:?}: {}", key, val)?;
                     first = false;
                 }
                 write!(f, "}}")
@@ -167,7 +153,7 @@ impl fmt::Debug for ValRef {
 
 pub struct Scope {
     parent: Option<Rc<RefCell<Scope>>>,
-    map: HashMap<String, ValRef>,
+    map: HashMap<BString, ValRef>,
 }
 
 impl Scope {
@@ -185,7 +171,7 @@ impl Scope {
         }
     }
 
-    pub fn lookup(&self, name: &String) -> Result<ValRef, String> {
+    pub fn lookup(&self, name: &BString) -> Result<ValRef, String> {
         match self.map.get(name) {
             Some(r) => Ok(r.clone()),
             None => match &self.parent {
@@ -195,24 +181,11 @@ impl Scope {
         }
     }
 
-    pub fn insert(&mut self, name: String, val: ValRef) {
+    pub fn insert(&mut self, name: BString, val: ValRef) {
         self.map.insert(name, val);
     }
 
-    pub fn put(&mut self, name: &str, val: ValRef) {
-        self.map.insert(name.to_string(), val);
-    }
-
-    pub fn put_lazy(&mut self, name: &str, func: Rc<FuncVal>) {
-        self.map
-            .insert(name.to_string(), ValRef::Lazy(Rc::new(ValRef::Func(func))));
-    }
-
-    pub fn put_func(&mut self, name: &str, func: Rc<FuncVal>) {
-        self.map.insert(name.to_string(), ValRef::Func(func));
-    }
-
-    pub fn replace(&mut self, name: String, val: ValRef) -> bool {
+    pub fn replace(&mut self, name: BString, val: ValRef) -> bool {
         if self.map.contains_key(&name) {
             self.map.insert(name, val);
             true
@@ -222,6 +195,21 @@ impl Scope {
             false
         }
     }
+
+    pub fn put(&mut self, name: &str, val: ValRef) {
+        self.map.insert(BString::from_str(name), val);
+    }
+
+    pub fn put_lazy(&mut self, name: &str, func: Rc<FuncVal>) {
+        self.map.insert(
+            BString::from_str(name),
+            ValRef::Lazy(Rc::new(ValRef::Func(func))),
+        );
+    }
+
+    pub fn put_func(&mut self, name: &str, func: Rc<FuncVal>) {
+        self.map.insert(BString::from_str(name), ValRef::Func(func));
+    }
 }
 
 pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -230,7 +218,7 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
         ValRef::Quote(exprs) => {
             let s = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             s.borrow_mut()
-                .insert("args".to_string(), ValRef::List(Rc::new(args)));
+                .insert(BString::from_str("args"), ValRef::List(Rc::new(args)));
             eval_call(exprs.as_ref(), &s)
         }
         ValRef::List(list) => {

@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod bstring;
 pub mod eval;
 pub mod importlib;
 pub mod iolib;
