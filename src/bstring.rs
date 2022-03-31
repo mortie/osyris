@@ -33,6 +33,10 @@ impl BString {
         self.0.starts_with(pfx)
     }
 
+    pub fn strip_prefix(&self, prefix: &BString) -> Option<&[u8]> {
+        self.0.strip_prefix(prefix.0.as_slice())
+    }
+
     pub fn to_path(&self) -> PathBuf {
         PathBuf::from(self.to_os_str())
     }

@@ -79,7 +79,7 @@ impl ValRef {
 
     pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
         match self {
-            ValRef::Quote(func) => eval_call(func, scope),
+            ValRef::Quote(..) => call(self.clone(), vec![], scope),
             val => Ok(val.clone()),
         }
     }
@@ -219,7 +219,13 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
             let s = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             s.borrow_mut()
                 .insert(BString::from_str("args"), ValRef::List(Rc::new(args)));
-            eval_call(exprs.as_ref(), &s)
+
+            let mut retval = ValRef::None;
+            for expr in exprs.as_ref() {
+                retval = eval(expr, &s)?;
+            }
+
+            Ok(retval)
         }
         ValRef::List(list) => {
             if args.len() != 1 {

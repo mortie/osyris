@@ -15,17 +15,7 @@ impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expression::String(s) => {
-                write!(f, "\"")?;
-                for ch in s {
-                    if *ch == b'\\' {
-                        write!(f, "\\\\")?;
-                    } else if *ch == b'"' {
-                        write!(f, "\\\"")?;
-                    } else {
-                        write!(f, "{}", ch)?;
-                    }
-                }
-                write!(f, "\"")
+                write!(f, "{:?}", s)
             }
             Expression::Number(num) => write!(f, "{}", num),
             Expression::Lookup(name) => write!(f, "{}", name),
