@@ -51,6 +51,28 @@ I think it would be much more natural if it worked like this:
     {(== c d) (print "C is D")})
 ```
 
+### Figure out what to do with formal parameter lists
+
+You used to be able to do:
+
+```
+(def 'say-hello {bind 'name
+    {print "Hello" name}})
+```
+
+Now, that's this:
+
+```
+(def 'say-hello {(bind 'name {
+    (print "Hello" name)})})
+```
+
+Maybe too many parens. Need to consider whether there should be some proper
+definition of a formal parameter list or if this + using `args` directly is ok.
+
+How function parameters are handled also affects the usefulness of the refcount==1
+optimizations for mutating functions.
+
 ## Add list and dict manipulation functions
 
 All these functions should return a new dict/list with the change applied, but
