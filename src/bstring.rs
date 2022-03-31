@@ -21,6 +21,10 @@ impl BString {
         BString(s.as_bytes().into())
     }
 
+    pub fn from_string(s: String) -> Self {
+        BString(s.as_bytes().into())
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_ref()
     }
