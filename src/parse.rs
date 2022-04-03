@@ -35,7 +35,7 @@ impl<'a> Reader<'a> {
     }
 
     fn eof(&self) -> bool {
-        return self.idx + 1 == self.string.len();
+        return self.idx == self.string.len();
     }
 
     fn consume(&mut self) {
