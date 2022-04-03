@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::rc::Rc;
+use std::cmp::PartialEq;
 
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
@@ -82,6 +83,12 @@ impl ValRef {
             ValRef::Quote(..) => call(self.clone(), vec![], scope),
             val => Ok(val.clone()),
         }
+    }
+}
+
+impl PartialEq for ValRef {
+    fn eq(&self, other: &Self) -> bool {
+        ValRef::equals(self, other)
     }
 }
 
@@ -219,13 +226,7 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
             let s = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             s.borrow_mut()
                 .insert(BString::from_str("args"), ValRef::List(Rc::new(args)));
-
-            let mut retval = ValRef::None;
-            for expr in exprs.as_ref() {
-                retval = eval(expr, &s)?;
-            }
-
-            Ok(retval)
+            eval_multiple(&exprs[..], &s)
         }
         ValRef::List(list) => {
             if args.len() != 1 {
@@ -316,4 +317,16 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
             _ => return Ok(val),
         }
     }
+}
+
+pub fn eval_multiple(
+    exprs: &[ast::Expression],
+    scope: &Rc<RefCell<Scope>>,
+) -> Result<ValRef, String> {
+    let mut retval = ValRef::None;
+    for expr in exprs {
+        retval = eval(expr, scope)?;
+    }
+
+    Ok(retval)
 }

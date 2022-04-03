@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{eval_call, Scope, ValRef};
+use super::eval::{self, Scope, ValRef};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -215,20 +215,18 @@ fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
 }
 
 fn lib_match(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    let mut idx = 0;
-    while idx < args.len() {
-        // If we hit the last argument, that's the default case
-        if idx == args.len() - 1 {
-            return args[idx].call_or_get(scope);
+    for arg in args {
+        let exprs = match arg {
+            ValRef::Quote(exprs) => exprs,
+            _ => return Err("'match' requires all arguments to be quotes".into()),
+        };
+
+        if exprs.len() < 1 {
+            return Err("'match' requires all arguments to have at least 1 element".into());
         }
 
-        let cond = &args[idx].call_or_get(scope)?;
-        idx += 1;
-        let body = &args[idx];
-        idx += 1;
-
-        if cond.to_bool() {
-            return body.call_or_get(scope);
+        if eval::eval(&exprs[0], scope)?.to_bool() {
+            return eval::eval_multiple(&exprs[1..], scope);
         }
     }
 
@@ -256,12 +254,12 @@ fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, St
 
     let mut retval: ValRef = ValRef::None;
     loop {
-        if !eval_call(cond.as_ref(), scope)?.to_bool() {
+        if !eval::eval_call(cond.as_ref(), scope)?.to_bool() {
             return Ok(retval);
         }
 
         match body {
-            Some(body) => retval = eval_call(body, scope)?,
+            Some(body) => retval = eval::eval_call(body, scope)?,
             _ => (),
         };
     }
@@ -304,7 +302,7 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     }
 
     match &args[args.len() - 1] {
-        ValRef::Quote(q) => eval_call(q.as_ref(), scope),
+        ValRef::Quote(q) => eval::eval_call(q.as_ref(), scope),
         _ => return Err("'bind' expects its last argument to be a quote".to_string()),
     }
 }
@@ -327,17 +325,9 @@ fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     }
 
     match &args[args.len() - 1] {
-        ValRef::Quote(q) => eval_call(q.as_ref(), scope),
+        ValRef::Quote(q) => eval::eval_call(q.as_ref(), scope),
         _ => return Err("'bind' expects its last argument to be a quote".to_string()),
     }
-}
-
-fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    if args.len() != 1 {
-        return Err("'lazy' requires 1 argument".to_string());
-    }
-
-    Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
 }
 
 fn lib_read(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
@@ -414,6 +404,14 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::None)
 }
 
+fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    if args.len() != 1 {
+        return Err("'lazy' requires 1 argument".to_string());
+    }
+
+    Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
+}
+
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::List(Rc::new(args)))
 }
@@ -469,10 +467,11 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     s.put_func("do", Rc::new(lib_do));
     s.put_func("bind", Rc::new(lib_bind));
     s.put_func("with", Rc::new(lib_with));
-    s.put_func("lazy", Rc::new(lib_lazy));
     s.put_func("read", Rc::new(lib_read));
     s.put_func("write", Rc::new(lib_write));
     s.put_func("seek", Rc::new(lib_seek));
+
+    s.put_func("lazy", Rc::new(lib_lazy));
 
     s.put_func("list", Rc::new(lib_list));
 
