@@ -44,7 +44,7 @@ impl PortVal for TextFile {
     }
 }
 
-pub fn lib_open(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn lib_open(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 1 {
         return Err("'open' requires 1 argument".to_string());
     }
@@ -62,7 +62,7 @@ pub fn lib_open(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
 }
 
-pub fn lib_create(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn lib_create(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 1 {
         return Err("'create' requires 1 argument".to_string());
     }
@@ -118,7 +118,7 @@ impl PortVal for ChildProc {
     }
 }
 
-pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn lib_exec(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Err("'exec' requires at least 1 argument".to_string());
     }

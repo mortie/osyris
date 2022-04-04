@@ -9,7 +9,7 @@ use std::io;
 use std::rc::Rc;
 use std::cmp::PartialEq;
 
-pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
+pub type FuncVal = dyn Fn(&[ValRef], &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
 pub struct LambdaVal {
     pub args: Vec<BString>,
@@ -87,7 +87,7 @@ impl ValRef {
 
     pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
         match self {
-            ValRef::Quote(..) => call(self.clone(), vec![], scope),
+            ValRef::Quote(..) => call(self.clone(), &[], scope),
             val => Ok(val.clone()),
         }
     }
@@ -228,9 +228,9 @@ impl Scope {
     }
 }
 
-pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match func {
-        ValRef::Func(func) => func(args.to_vec(), scope),
+        ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => eval_multiple(&exprs[..], scope),
         ValRef::Lambda(l) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
@@ -246,7 +246,7 @@ pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Resu
                     ss.insert(l.args[idx].clone(), args[idx].clone());
                 }
 
-                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(args)));
+                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(args.to_vec())));
             }
 
             eval_multiple(&l.body[..], &subscope)
@@ -301,14 +301,13 @@ pub fn eval_call(
     }
 
     let func = eval(&exprs[0], scope)?;
-    call(func, args, scope)
+    call(func, args.as_slice(), scope)
 }
 
 fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match lazy {
         ValRef::Func(func) => {
-            let args: Vec<ValRef> = Vec::new();
-            func(args, scope)
+            func(&[], scope)
         }
         ValRef::Lambda(l) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));

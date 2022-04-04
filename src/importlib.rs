@@ -130,7 +130,7 @@ fn import(importctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, String> {
 
 fn lib_import(
     importctx: &Rc<ImportCtx>,
-    args: Vec<ValRef>,
+    args: &[ValRef],
     _: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, String> {
     if args.len() != 1 {

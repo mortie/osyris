@@ -1,27 +1,37 @@
 use super::bstring::BString;
-use super::eval::{self, Scope, ValRef};
+use super::eval::{self, Scope, ValRef, PortVal};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use std::rc::Rc;
 
-fn lib_print(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_print(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    let stdout = match scope.borrow().lookup(&BString::from_str("stdout")) {
+        Some(stdout) => stdout,
+        None => return Err("'print' expects a variable 'stdout' to be defined".into()),
+    };
+
+    let stdout = match stdout {
+        ValRef::Port(port) => port,
+        _ => return Err("'print' expects 'stdout' to be a port".into()),
+    };
+    let mut out = stdout.borrow_mut();
+
+    let space = ValRef::String(Rc::new(BString::from_str(" ")));
     for idx in 0..args.len() {
         if idx != 0 {
-            print!(" ");
+            out.write(&space)?;
         }
 
-        match &args[idx] {
-            ValRef::String(s) => print!("{}", s.as_ref()),
-            val => print!("{}", val),
-        }
+        out.write(&args[idx])?;
     }
-    println!();
+    out.write(&ValRef::String(Rc::new(BString::from_str("\n"))))?;
+
     Ok(ValRef::None)
 }
 
-fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_add(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     }
@@ -34,7 +44,7 @@ fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(ValRef::Number(num))
 }
 
-fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_sub(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     }
@@ -47,7 +57,7 @@ fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(ValRef::Number(num))
 }
 
-fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_mul(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     }
@@ -60,7 +70,7 @@ fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(ValRef::Number(num))
 }
 
-fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_div(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     }
@@ -73,7 +83,7 @@ fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(ValRef::Number(num))
 }
 
-fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_equals(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() <= 1 {
         return Ok(ValRef::Bool(true));
     }
@@ -87,7 +97,7 @@ fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
     Ok(ValRef::Bool(true))
 }
 
-fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_nequals(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match lib_equals(args, scope) {
         Ok(ValRef::Bool(true)) => Ok(ValRef::Bool(false)),
         Ok(ValRef::Bool(false)) => Ok(ValRef::Bool(true)),
@@ -95,7 +105,7 @@ fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
     }
 }
 
-fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_lteq(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() > args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -105,7 +115,7 @@ fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::Bool(true))
 }
 
-fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_lt(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() >= args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -115,7 +125,7 @@ fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::Bool(true))
 }
 
-fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_gteq(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() < args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -125,7 +135,7 @@ fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::Bool(true))
 }
 
-fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_gt(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() <= args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -135,7 +145,7 @@ fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::Bool(true))
 }
 
-fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_or(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_bool() {
             return Ok(args[idx].clone());
@@ -145,7 +155,7 @@ fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(args[args.len() - 1].clone())
 }
 
-fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_and(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for idx in 0..args.len() - 1 {
         if !args[idx].to_bool() {
             return Ok(args[idx].clone());
@@ -155,8 +165,8 @@ fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> 
     Ok(args[args.len() - 1].clone())
 }
 
-fn lib_first(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    for arg in &args {
+fn lib_first(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    for arg in args {
         match arg {
             ValRef::None => (),
             _ => return Ok(arg.clone()),
@@ -166,7 +176,7 @@ fn lib_first(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String
     Ok(ValRef::None)
 }
 
-fn lib_def(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_def(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 {
         return Err("'def' requires 2 arguments".to_string());
     }
@@ -180,7 +190,7 @@ fn lib_def(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stri
     Ok(ValRef::None)
 }
 
-fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_set(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 {
         return Err("'set' requires 2 arguments".to_string());
     }
@@ -197,7 +207,7 @@ fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stri
     }
 }
 
-fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_if(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 && args.len() != 3 {
         return Err("'if' requires 2 or 3 arguments".to_string());
     }
@@ -214,7 +224,7 @@ fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
     expr.call_or_get(scope)
 }
 
-fn lib_match(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_match(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     for arg in args {
         let exprs = match arg {
             ValRef::Quote(exprs) => exprs,
@@ -233,7 +243,7 @@ fn lib_match(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, St
     Ok(ValRef::None)
 }
 
-fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_while(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 1 && args.len() != 2 {
         return Err("'while' requires 1 or 2 arguments".to_string());
     }
@@ -265,7 +275,7 @@ fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, St
     }
 }
 
-fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_do(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() > 0 {
         Ok(args[args.len() - 1].clone())
     } else {
@@ -273,7 +283,7 @@ fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     }
 }
 
-fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_bind(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() < 1 {
         return Err("'bind' requires at least 1 argument".to_string());
     }
@@ -307,7 +317,7 @@ fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     }
 }
 
-fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_with(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     let mut idx = 0;
     while idx < args.len() - 1 {
         let name = match &args[idx] {
@@ -330,7 +340,7 @@ fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     }
 }
 
-fn lib_read(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_read(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 1 && args.len() != 2 {
         return Err("'read' requires 1 or 2 arguments".to_string());
     }
@@ -351,7 +361,7 @@ fn lib_read(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     }
 }
 
-fn lib_write(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_write(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 {
         return Err("'write' requires 2 arguments".to_string());
     }
@@ -365,7 +375,7 @@ fn lib_write(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String
     Ok(ValRef::None)
 }
 
-fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_seek(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 2 && args.len() != 3 {
         return Err("'seek' requires 2 or 3 arguments".to_string());
     }
@@ -404,7 +414,7 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::None)
 }
 
-fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_lazy(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() != 1 {
         return Err("'lazy' requires 1 argument".to_string());
     }
@@ -412,7 +422,7 @@ fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
 }
 
-fn lib_lambda(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_lambda(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     let mut argnames: Vec<BString> = Vec::new();
     for idx in 0..args.len() {
         match &args[idx] {
@@ -434,11 +444,11 @@ fn lib_lambda(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
     Err("'lambda' requires a quote argument".into())
 }
 
-fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
-    Ok(ValRef::List(Rc::new(args)))
+fn lib_list(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    Ok(ValRef::List(Rc::new(args.to_vec())))
 }
 
-fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     if args.len() % 2 != 0 {
         return Err("'map' requires an even number of arguments".to_string());
     }
@@ -462,11 +472,22 @@ fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::Map(Rc::new(map)))
 }
 
-pub fn init(scope: &Rc<RefCell<Scope>>) {
+pub struct StdIo {
+    pub stdin: Rc<RefCell<dyn PortVal>>,
+    pub stdout: Rc<RefCell<dyn PortVal>>,
+    pub stderr: Rc<RefCell<dyn PortVal>>,
+}
+
+pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     let mut s = scope.borrow_mut();
+    s.put("stdin", ValRef::Port(stdio.stdin));
+    s.put("stdout", ValRef::Port(stdio.stdout));
+    s.put("stderr", ValRef::Port(stdio.stderr));
+
     s.put("none", ValRef::None);
     s.put("false", ValRef::Bool(false));
     s.put("true", ValRef::Bool(true));
+
     s.put_func("print", Rc::new(lib_print));
     s.put_func("+", Rc::new(lib_add));
     s.put_func("-", Rc::new(lib_sub));
@@ -500,4 +521,57 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     s.put_func("list", Rc::new(lib_list));
 
     s.put_func("dict", Rc::new(lib_dict));
+}
+
+pub struct WritePort {
+    w: Rc<RefCell<dyn io::Write>>,
+}
+
+impl WritePort {
+    pub fn new(w: Rc<RefCell<dyn io::Write>>) -> Self {
+        Self { w }
+    }
+}
+
+impl PortVal for WritePort {
+    fn write(&mut self, v: &ValRef) -> Result<(), String> {
+        let res = match v {
+            ValRef::String(s) => write!(self.w.borrow_mut(), "{}", s),
+            _ => write!(self.w.borrow_mut(), "{}", v),
+        };
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+}
+
+pub struct ReadPort {
+    r: Rc<RefCell<dyn io::Read>>,
+}
+
+impl ReadPort {
+    pub fn new(r: Rc<RefCell<dyn io::Read>>) -> Self {
+        Self { r }
+    }
+}
+
+impl PortVal for ReadPort {
+    fn read(&mut self) -> Result<ValRef, String> {
+        let mut buf = [0u8; 4096];
+        let size = match self.r.borrow_mut().read(&mut buf[..]) {
+            Ok(size) => size,
+            Err(err) => return Err(err.to_string()),
+        };
+
+        Ok(ValRef::String(Rc::new(BString::from_bytes(&buf[..size]))))
+    }
+}
+
+pub fn init(scope: &Rc<RefCell<Scope>>) {
+    init_with_stdio(scope, StdIo {
+        stdin: Rc::new(RefCell::new(ReadPort::new(Rc::new(RefCell::new(io::stdin()))))),
+        stdout: Rc::new(RefCell::new(WritePort::new(Rc::new(RefCell::new(io::stdout()))))),
+        stderr: Rc::new(RefCell::new(WritePort::new(Rc::new(RefCell::new(io::stderr()))))),
+    })
 }
