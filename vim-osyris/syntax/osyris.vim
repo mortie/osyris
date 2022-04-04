@@ -1,10 +1,10 @@
 " Vim syntax file
 " Language: Osyris
 " Maintainer: Martin Dørum
-" Latest Revision: 2 April 2022
+" Latest Revision: 5 April 2022
 
 if exists("b:current_syntax")
-    finish
+	finish
 endif
 
 syntax match osyrisIdentifier "[^ \t(){}\[\].]\+"
