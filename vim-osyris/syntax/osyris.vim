@@ -7,15 +7,17 @@ if exists("b:current_syntax")
 	finish
 endif
 
-syntax match osyrisIdentifier "[^ \t(){}\[\].]\+"
-highlight link osyrisIdentifier Identifier
+set iskeyword+=+,-,*,/,=,!,<,>,&,\|,?,@,#,$,%
 
 syntax keyword osyrisKeyword true false none
 highlight link osyrisKeyword Keyword
 
-syntax keyword osyrisFunction def set if match while
-syntax keyword osyrisFunction print lambda list dict lazy
+syntax keyword osyrisFunction def set if match while print
+syntax keyword osyrisFunction lambda list dict lazy
 highlight link osyrisFunction Statement
+
+syntax match osyrisIdentifier "[^ \t(){}\[\].]\+"
+highlight link osyrisIdentifier Identifier
 
 syntax match osyrisComment ";.*$"
 highlight link osyrisComment Comment

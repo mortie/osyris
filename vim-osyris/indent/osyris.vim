@@ -25,14 +25,14 @@ function! OsyrisIndent()
 
 	let opens = len(substitute(prevline, '[^{(\[]', '', 'g'))
 	let closes = len(substitute(prevline, '[^})\]]', '', 'g'))
-	if opens > closes
+	if opens > closes || prevline =~ '{$'
 		let ind = ind + shiftwidth()
 	elseif opens > 0 && closes > opens
 		let ind = ind - shiftwidth()
 	endif
 
-	let opens = len(substitute(currline, '[^{(\[]', '', 'g'))
-	let closes = len(substitute(currline, '[^})\]]', '', 'g'))
+	let opens = len(substitute(currline, '[^{\[]', '', 'g'))
+	let closes = len(substitute(currline, '[^}\]]', '', 'g'))
 	if opens < closes
 		let ind = ind - shiftwidth()
 	endif
