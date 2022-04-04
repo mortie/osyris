@@ -42,6 +42,18 @@ impl BString {
     }
 }
 
+impl<const N: usize> PartialEq<&[u8; N]> for BString {
+    fn eq(&self, other: &&[u8; N]) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<&[u8]> for BString {
+    fn eq(&self, other: &&[u8]) -> bool {
+        self.0 == *other
+    }
+}
+
 impl<'a> IntoIterator for &'a BString {
     type Item = &'a u8;
     type IntoIter = std::slice::Iter<'a, u8>;

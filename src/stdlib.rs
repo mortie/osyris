@@ -412,6 +412,28 @@ fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String>
     Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
 }
 
+fn lib_lambda(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    let mut argnames: Vec<BString> = Vec::new();
+    for idx in 0..args.len() {
+        match &args[idx] {
+            eval::ValRef::String(bs) => argnames.push(bs.as_ref().clone()),
+            eval::ValRef::Quote(q) => {
+                if idx != args.len() - 1 {
+                    return Err("'lambda' requires the quote to be the last argument".into());
+                }
+
+                return Ok(eval::ValRef::Lambda(Rc::new(eval::LambdaVal{
+                    args: argnames,
+                    body: q.clone(),
+                })));
+            },
+            _ => return Err("'lambda' requires arguments to be quotes or strings".into()),
+        }
+    }
+
+    Err("'lambda' requires a quote argument".into())
+}
+
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     Ok(ValRef::List(Rc::new(args)))
 }
@@ -470,6 +492,8 @@ pub fn init(scope: &Rc<RefCell<Scope>>) {
     s.put_func("read", Rc::new(lib_read));
     s.put_func("write", Rc::new(lib_write));
     s.put_func("seek", Rc::new(lib_seek));
+
+    s.put_func("lambda", Rc::new(lib_lambda));
 
     s.put_func("lazy", Rc::new(lib_lazy));
 

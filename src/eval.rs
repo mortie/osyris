@@ -11,6 +11,11 @@ use std::cmp::PartialEq;
 
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
 
+pub struct LambdaVal {
+    pub args: Vec<BString>,
+    pub body: Rc<Vec<ast::Expression>>,
+}
+
 pub trait PortVal {
     fn read(&mut self) -> Result<ValRef, String> {
         return Err("This port doesn't support reading".to_string());
@@ -38,6 +43,7 @@ pub enum ValRef {
     List(Rc<Vec<ValRef>>),
     Map(Rc<HashMap<BString, ValRef>>),
     Func(Rc<FuncVal>),
+    Lambda(Rc<LambdaVal>),
     Lazy(Rc<ValRef>),
     ProtectedLazy(Rc<ValRef>),
     Native(Rc<dyn Any>),
@@ -72,6 +78,7 @@ impl ValRef {
             (ValRef::Number(a), ValRef::Number(b)) => a == b,
             (ValRef::String(a), ValRef::String(b)) => a == b,
             (ValRef::Quote(a), ValRef::Quote(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
             (ValRef::List(a), ValRef::List(b)) => Rc::ptr_eq(a, b),
             (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
             _ => false,
@@ -103,6 +110,7 @@ impl Clone for ValRef {
             Self::List(l) => Self::List(l.clone()),
             Self::Map(m) => Self::Map(m.clone()),
             Self::Func(f) => Self::Func(f.clone()),
+            Self::Lambda(l) => Self::Lambda(l.clone()),
             Self::Lazy(val) => Self::Lazy(val.clone()),
             Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
             Self::Native(n) => Self::Native(n.clone()),
@@ -144,6 +152,7 @@ impl fmt::Display for ValRef {
                 write!(f, "]")
             }
             Self::Func(func) => write!(f, "(func {:p})", func.as_ref()),
+            Self::Lambda(l) => write!(f, "(lambda {:?} {:?})", l.args, l.body),
             Self::Lazy(val) => write!(f, "(lazy {})", val),
             Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
             Self::Native(n) => write!(f, "(native {:p})", n.as_ref()),
@@ -178,12 +187,12 @@ impl Scope {
         }
     }
 
-    pub fn lookup(&self, name: &BString) -> Result<ValRef, String> {
+    pub fn lookup(&self, name: &BString) -> Option<ValRef> {
         match self.map.get(name) {
-            Some(r) => Ok(r.clone()),
+            Some(r) => Some(r.clone()),
             None => match &self.parent {
                 Some(parent) => parent.borrow().lookup(name),
-                None => Err(format!("Variable '{}' doesn't exist", name)),
+                None => None,
             },
         }
     }
@@ -221,13 +230,27 @@ impl Scope {
 
 pub fn call(func: ValRef, args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
     match func {
-        ValRef::Func(func) => func(args, scope),
-        ValRef::Quote(exprs) => {
-            let s = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
-            s.borrow_mut()
-                .insert(BString::from_str("args"), ValRef::List(Rc::new(args)));
-            eval_multiple(&exprs[..], &s)
-        }
+        ValRef::Func(func) => func(args.to_vec(), scope),
+        ValRef::Quote(exprs) => eval_multiple(&exprs[..], scope),
+        ValRef::Lambda(l) => {
+            let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
+
+            {
+                let mut ss = subscope.borrow_mut();
+
+                for idx in 0..l.args.len() {
+                    if idx >= args.len() {
+                        break;
+                    }
+
+                    ss.insert(l.args[idx].clone(), args[idx].clone());
+                }
+
+                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(args)));
+            }
+
+            eval_multiple(&l.body[..], &subscope)
+        },
         ValRef::List(list) => {
             if args.len() != 1 {
                 return Err("Array lookup requires 1 argument".to_string());
@@ -287,16 +310,15 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
             let args: Vec<ValRef> = Vec::new();
             func(args, scope)
         }
-        ValRef::Quote(exprs) => {
-            let s = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
-
-            let mut retval = ValRef::None;
-            for expr in exprs.as_ref() {
-                retval = eval(expr, &s)?;
+        ValRef::Lambda(l) => {
+            let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
+            {
+                let mut ss = subscope.borrow_mut();
+                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(vec![])));
             }
-
-            Ok(retval)
+            eval_multiple(&l.body[..], &subscope)
         }
+        ValRef::Quote(exprs) => eval_multiple(exprs, &scope),
         _ => Ok(lazy.clone()),
     }
 }
@@ -305,7 +327,10 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
     let mut val = match expr {
         ast::Expression::String(s) => Ok(ValRef::String(Rc::new(s.clone()))),
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
-        ast::Expression::Lookup(name) => scope.borrow().lookup(name),
+        ast::Expression::Lookup(name) => match scope.borrow().lookup(name) {
+            Some(val) => Ok(val),
+            None => Err(format!("Variable '{}' doesn't exist", name)),
+        }
         ast::Expression::Call(exprs) => eval_call(exprs, scope),
         ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
     }?;
