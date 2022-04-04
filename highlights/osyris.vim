@@ -14,7 +14,7 @@ syntax keyword osyrisKeyword true false none
 highlight link osyrisKeyword Keyword
 
 syntax keyword osyrisFunction def set if match while
-syntax keyword osyrisFunction print list dict lazy
+syntax keyword osyrisFunction print lambda list dict lazy
 highlight link osyrisFunction Statement
 
 syntax match osyrisComment ";.*$"
