@@ -3,11 +3,11 @@ use super::bstring::BString;
 
 use std::any::Any;
 use std::cell::RefCell;
+use std::cmp::PartialEq;
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::rc::Rc;
-use std::cmp::PartialEq;
 
 pub type FuncVal = dyn Fn(&[ValRef], &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>;
 
@@ -213,7 +213,11 @@ impl fmt::Display for StackTrace {
         }?;
 
         for entry in &self.trace {
-            write!(f, "\n  {}: {}:{}: {}", entry.location.file, entry.location.line, entry.location.column, entry.name)?;
+            write!(
+                f,
+                "\n  {}: {}:{}: {}",
+                entry.location.file, entry.location.line, entry.location.column, entry.name
+            )?;
         }
 
         Ok(())
@@ -281,7 +285,11 @@ impl Scope {
     }
 }
 
-pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+pub fn call(
+    func: ValRef,
+    args: &[ValRef],
+    scope: &Rc<RefCell<Scope>>,
+) -> Result<ValRef, StackTrace> {
     match func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => eval_multiple(&exprs[..], scope),
@@ -299,11 +307,14 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
                     ss.insert(l.args[idx].clone(), args[idx].clone());
                 }
 
-                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(args.to_vec())));
+                ss.insert(
+                    BString::from_str("args"),
+                    ValRef::List(Rc::new(args.to_vec())),
+                );
             }
 
             eval_multiple(&l.body[..], &subscope)
-        },
+        }
         ValRef::List(list) => {
             if args.len() != 1 {
                 return Err(StackTrace::from_str("Array lookup requires 1 argument"));
@@ -311,7 +322,11 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
 
             let idx = match args[0] {
                 ValRef::Number(idx) => idx,
-                _ => return Err(StackTrace::from_str("Attempt to index array with non-number")),
+                _ => {
+                    return Err(StackTrace::from_str(
+                        "Attempt to index array with non-number",
+                    ))
+                }
             };
 
             if idx as usize > list.len() || idx < 0.0 {
@@ -322,7 +337,9 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
         }
         ValRef::Map(map) => {
             if args.len() != 1 {
-                return Err(StackTrace::from_str("Map lookup requires exactly 1 argument"));
+                return Err(StackTrace::from_str(
+                    "Map lookup requires exactly 1 argument",
+                ));
             }
 
             let key = match &args[0] {
@@ -335,7 +352,10 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
                 None => Ok(ValRef::None),
             }
         }
-        _ => Err(StackTrace::from_string(format!("Attempt to call non-function {}", func))),
+        _ => Err(StackTrace::from_string(format!(
+            "Attempt to call non-function {}",
+            func
+        ))),
     }
 }
 
@@ -359,9 +379,7 @@ pub fn eval_call(
 
 fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     match lazy {
-        ValRef::Func(func) => {
-            func(&[], scope)
-        }
+        ValRef::Func(func) => func(&[], scope),
         ValRef::Lambda(l) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             {
@@ -381,8 +399,11 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
         ast::Expression::Lookup(name) => match scope.borrow().lookup(name) {
             Some(val) => Ok(val),
-            None => Err(StackTrace::from_string(format!("Variable '{}' doesn't exist", name))),
-        }
+            None => Err(StackTrace::from_string(format!(
+                "Variable '{}' doesn't exist",
+                name
+            ))),
+        },
         ast::Expression::Call(exprs, loc) => {
             if exprs.len() == 0 {
                 return Ok(ValRef::None);
@@ -392,7 +413,7 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
                 Ok(val) => Ok(val),
                 Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
             }
-        },
+        }
         ast::Expression::Quote(exprs, _) => Ok(ValRef::Quote(exprs.clone())),
     }?;
 

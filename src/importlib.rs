@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{eval, Scope, ValRef, StackTrace};
+use super::eval::{eval, Scope, StackTrace, ValRef};
 use super::parse;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -92,7 +92,8 @@ impl Import for DefaultImporter {
         ));
         init_with_importer(&scope, childctx);
 
-        let mut reader = parse::Reader::new(&code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
+        let mut reader =
+            parse::Reader::new(&code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
 
         let mut ret = ValRef::None;
         loop {
@@ -101,7 +102,12 @@ impl Import for DefaultImporter {
                     Some(expr) => expr,
                     None => break,
                 },
-                Err(err) => return Err(StackTrace::from_string(format!("{}: Parse error: {}:{}: {}", name, err.line, err.col, err.msg))),
+                Err(err) => {
+                    return Err(StackTrace::from_string(format!(
+                        "{}: Parse error: {}:{}: {}",
+                        name, err.line, err.col, err.msg
+                    )))
+                }
             };
 
             match eval(&expr, &scope) {
@@ -134,7 +140,11 @@ fn lib_import(
 
     let path = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err(StackTrace::from_str("'import' requires the first argument to be a string".into())),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'import' requires the first argument to be a string".into(),
+            ))
+        }
     };
 
     import(importctx, path)

@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{self, Scope, ValRef, PortVal, StackTrace};
+use super::eval::{self, PortVal, Scope, StackTrace, ValRef};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -9,12 +9,20 @@ use std::rc::Rc;
 fn lib_print(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let stdout = match scope.borrow().lookup(&BString::from_str("stdout")) {
         Some(stdout) => stdout,
-        None => return Err(StackTrace::from_str("'print' expects a variable 'stdout' to be defined")),
+        None => {
+            return Err(StackTrace::from_str(
+                "'print' expects a variable 'stdout' to be defined",
+            ))
+        }
     };
 
     let stdout = match stdout {
         ValRef::Port(port) => port,
-        _ => return Err(StackTrace::from_str("'print' expects 'stdout' to be a port")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'print' expects 'stdout' to be a port",
+            ))
+        }
     };
     let mut out = stdout.borrow_mut();
 
@@ -192,7 +200,11 @@ fn lib_def(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
 
     let name = match &args[0] {
         ValRef::String(s) => s.as_ref(),
-        _ => return Err(StackTrace::from_str("'def' requires the first argument to be a string")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'def' requires the first argument to be a string",
+            ))
+        }
     };
 
     scope.borrow_mut().insert(name.clone(), args[1].clone());
@@ -206,13 +218,20 @@ fn lib_set(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
 
     let name = match &args[0] {
         ValRef::String(s) => s.as_ref(),
-        _ => return Err(StackTrace::from_str("'set' requires the first argument to be a string")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'set' requires the first argument to be a string",
+            ))
+        }
     };
 
     if scope.borrow_mut().replace(name.clone(), args[1].clone()) {
         Ok(ValRef::None)
     } else {
-        Err(StackTrace::from_string(format!("Variable '{}' doesn't exist", name)))
+        Err(StackTrace::from_string(format!(
+            "Variable '{}' doesn't exist",
+            name
+        )))
     }
 }
 
@@ -237,11 +256,17 @@ fn lib_match(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
     for arg in args {
         let exprs = match arg {
             ValRef::Quote(exprs) => exprs,
-            _ => return Err(StackTrace::from_str("'match' requires all arguments to be quotes")),
+            _ => {
+                return Err(StackTrace::from_str(
+                    "'match' requires all arguments to be quotes",
+                ))
+            }
         };
 
         if exprs.len() < 1 {
-            return Err(StackTrace::from_str("'match' requires all arguments to have at least 1 element"));
+            return Err(StackTrace::from_str(
+                "'match' requires all arguments to have at least 1 element",
+            ));
         }
 
         if eval::eval(&exprs[0], scope)?.to_bool() {
@@ -259,13 +284,21 @@ fn lib_while(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
 
     let cond = match &args[0] {
         ValRef::Quote(func) => func,
-        _ => return Err(StackTrace::from_str("'while' expects the firt argument to be a function")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'while' expects the firt argument to be a function",
+            ))
+        }
     };
 
     let body = if args.len() >= 1 {
         match &args[1] {
             ValRef::Quote(func) => Some(func),
-            _ => return Err(StackTrace::from_str("'while' expects the second argument to be a function")),
+            _ => {
+                return Err(StackTrace::from_str(
+                    "'while' expects the second argument to be a function",
+                ))
+            }
         }
     } else {
         None
@@ -299,7 +332,11 @@ fn lib_bind(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
     let vals = match &args[0] {
         ValRef::List(l) => l,
-        _ => return Err(StackTrace::from_str("'bind' expects first argument to be a list")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'bind' expects first argument to be a list",
+            ))
+        }
     };
 
     let mut argidx = 0;
@@ -322,7 +359,11 @@ fn lib_bind(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
     match &args[args.len() - 1] {
         ValRef::Quote(q) => eval::eval_call(q.as_ref(), scope),
-        _ => return Err(StackTrace::from_str("'bind' expects its last argument to be a quote")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'bind' expects its last argument to be a quote",
+            ))
+        }
     }
 }
 
@@ -345,7 +386,11 @@ fn lib_with(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
     match &args[args.len() - 1] {
         ValRef::Quote(q) => eval::eval_call(q.as_ref(), scope),
-        _ => return Err(StackTrace::from_str("'bind' expects its last argument to be a quote")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'bind' expects its last argument to be a quote",
+            ))
+        }
     }
 }
 
@@ -356,7 +401,11 @@ fn lib_read(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 
     let port = match &args[0] {
         ValRef::Port(port) => port,
-        _ => return Err(StackTrace::from_str("'read' requires the first argument to be a port")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'read' requires the first argument to be a port",
+            ))
+        }
     };
 
     if args.len() == 1 {
@@ -367,7 +416,11 @@ fn lib_read(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     } else {
         let size = match args[1] {
             ValRef::Number(num) => num,
-            _ => return Err(StackTrace::from_str("'read' requires the second argument to be a number")),
+            _ => {
+                return Err(StackTrace::from_str(
+                    "'read' requires the second argument to be a number",
+                ))
+            }
         };
 
         match port.borrow_mut().read_chunk(size as usize) {
@@ -384,7 +437,11 @@ fn lib_write(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
 
     let port = match &args[0] {
         ValRef::Port(port) => port,
-        _ => return Err(StackTrace::from_str("'write' requires the first argument to be a port")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'write' requires the first argument to be a port",
+            ))
+        }
     };
 
     match port.borrow_mut().write(&args[1]) {
@@ -400,12 +457,20 @@ fn lib_seek(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 
     let port = match &args[0] {
         ValRef::Port(port) => port,
-        _ => return Err(StackTrace::from_str("'seek' requires the first argument to be a port")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'seek' requires the first argument to be a port",
+            ))
+        }
     };
 
     let num = match &args[1] {
         ValRef::Number(num) => *num,
-        _ => return Err(StackTrace::from_str("'seek' requires the second argument to be a number")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'seek' requires the second argument to be a number",
+            ))
+        }
     };
 
     let pos = if args.len() == 2 {
@@ -413,7 +478,11 @@ fn lib_seek(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     } else {
         let name = match &args[2] {
             ValRef::String(s) => s,
-            _ => return Err(StackTrace::from_str("'seek' requires the third argument to be a string")),
+            _ => {
+                return Err(StackTrace::from_str(
+                    "'seek' requires the third argument to be a string",
+                ))
+            }
         };
 
         match name.as_bytes() {
@@ -421,8 +490,9 @@ fn lib_seek(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
             b"end" => io::SeekFrom::End(num as i64),
             b"current" => io::SeekFrom::Current(num as i64),
             _ => {
-                return Err(StackTrace::from_str("'seek' requires the seek offset to be 'set', 'end' or 'current'"),
-                )
+                return Err(StackTrace::from_str(
+                    "'seek' requires the seek offset to be 'set', 'end' or 'current'",
+                ))
             }
         }
     };
@@ -452,13 +522,15 @@ fn lib_error(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
             }
         }
 
-        Err(StackTrace::from_val(ValRef::String(Rc::new(BString::from_vec(vec)))))
+        Err(StackTrace::from_val(ValRef::String(Rc::new(
+            BString::from_vec(vec),
+        ))))
     }
 }
 
 fn lib_try(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 {
-        return Err(StackTrace::from_str("'try' requires 2 or 3 arguments"))
+        return Err(StackTrace::from_str("'try' requires 2 or 3 arguments"));
     }
 
     match eval::call(args[0].clone(), &[], scope) {
@@ -482,15 +554,21 @@ fn lib_lambda(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
             eval::ValRef::String(bs) => argnames.push(bs.as_ref().clone()),
             eval::ValRef::Quote(q) => {
                 if idx != args.len() - 1 {
-                    return Err(StackTrace::from_str("'lambda' requires the quote to be the last argument"));
+                    return Err(StackTrace::from_str(
+                        "'lambda' requires the quote to be the last argument",
+                    ));
                 }
 
-                return Ok(eval::ValRef::Lambda(Rc::new(eval::LambdaVal{
+                return Ok(eval::ValRef::Lambda(Rc::new(eval::LambdaVal {
                     args: argnames,
                     body: q.clone(),
                 })));
-            },
-            _ => return Err(StackTrace::from_str("'lambda' requires arguments to be quotes or strings")),
+            }
+            _ => {
+                return Err(StackTrace::from_str(
+                    "'lambda' requires arguments to be quotes or strings",
+                ))
+            }
         }
     }
 
@@ -503,7 +581,9 @@ fn lib_list(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 
 fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() % 2 != 0 {
-        return Err(StackTrace::from_str("'dict' requires an even number of arguments"));
+        return Err(StackTrace::from_str(
+            "'dict' requires an even number of arguments",
+        ));
     }
 
     let mut map: HashMap<BString, ValRef> = HashMap::new();
@@ -625,9 +705,18 @@ impl PortVal for ReadPort {
 }
 
 pub fn init(scope: &Rc<RefCell<Scope>>) {
-    init_with_stdio(scope, StdIo {
-        stdin: Rc::new(RefCell::new(ReadPort::new(Rc::new(RefCell::new(io::stdin()))))),
-        stdout: Rc::new(RefCell::new(WritePort::new(Rc::new(RefCell::new(io::stdout()))))),
-        stderr: Rc::new(RefCell::new(WritePort::new(Rc::new(RefCell::new(io::stderr()))))),
-    })
+    init_with_stdio(
+        scope,
+        StdIo {
+            stdin: Rc::new(RefCell::new(ReadPort::new(Rc::new(RefCell::new(
+                io::stdin(),
+            ))))),
+            stdout: Rc::new(RefCell::new(WritePort::new(Rc::new(RefCell::new(
+                io::stdout(),
+            ))))),
+            stderr: Rc::new(RefCell::new(WritePort::new(Rc::new(RefCell::new(
+                io::stderr(),
+            ))))),
+        },
+    )
 }

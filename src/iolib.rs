@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{PortVal, Scope, ValRef, StackTrace};
+use super::eval::{PortVal, Scope, StackTrace, ValRef};
 use std::cell::RefCell;
 use std::fs;
 use std::io;
@@ -51,12 +51,21 @@ pub fn lib_open(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
     let path = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err(StackTrace::from_str("'open' requires the first argument to be a string")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'open' requires the first argument to be a string",
+            ))
+        }
     };
 
     let f = match fs::File::open(path.to_path()) {
         Ok(f) => f,
-        Err(err) => return Err(StackTrace::from_string(format!("'open': {}: {}", path, err))),
+        Err(err) => {
+            return Err(StackTrace::from_string(format!(
+                "'open': {}: {}",
+                path, err
+            )))
+        }
     };
 
     Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
@@ -69,12 +78,21 @@ pub fn lib_create(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 
     let path = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err(StackTrace::from_str("'create' requires the first argument to be a string")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'create' requires the first argument to be a string",
+            ))
+        }
     };
 
     let f = match fs::File::create(path.to_path()) {
         Ok(f) => f,
-        Err(err) => return Err(StackTrace::from_string(format!("'create': {}: {}", path, err))),
+        Err(err) => {
+            return Err(StackTrace::from_string(format!(
+                "'create': {}: {}",
+                path, err
+            )))
+        }
     };
 
     Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
@@ -125,7 +143,11 @@ pub fn lib_exec(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
     let name = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err(StackTrace::from_str("'exec' requires its arguments to be strings")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'exec' requires its arguments to be strings",
+            ))
+        }
     };
 
     let mut cmd = Command::new(name.to_os_str());
@@ -133,7 +155,11 @@ pub fn lib_exec(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     for idx in 1..args.len() {
         match &args[idx] {
             ValRef::String(s) => cmd.arg(s.to_os_str()),
-            _ => return Err(StackTrace::from_str("'exec' requires its arguments to be strings")),
+            _ => {
+                return Err(StackTrace::from_str(
+                    "'exec' requires its arguments to be strings",
+                ))
+            }
         };
     }
 
