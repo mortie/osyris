@@ -14,6 +14,7 @@ highlight link osyrisKeyword Keyword
 
 syntax keyword osyrisFunction def set if match while print
 syntax keyword osyrisFunction lambda list dict lazy
+syntax keyword osyrisFunction try error
 highlight link osyrisFunction Statement
 
 syntax match osyrisIdentifier "[^ \t(){}\[\].]\+"
