@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{eval, Scope, ValRef};
+use super::eval::{eval, Scope, ValRef, StackTrace};
 use super::parse;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 pub trait Import {
-    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, String>;
+    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, StackTrace>;
 }
 
 pub struct ImportCtx {
@@ -50,7 +50,7 @@ impl DefaultImporter {
 }
 
 impl Import for DefaultImporter {
-    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, String> {
+    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, StackTrace> {
         if let Some(val) = self.builtins.get(name) {
             return Ok(val.clone());
         }
@@ -64,7 +64,7 @@ impl Import for DefaultImporter {
 
         let abspath = match fs::canonicalize(path) {
             Ok(path) => path,
-            Err(err) => return Err(err.to_string()),
+            Err(err) => return Err(StackTrace::new(err.to_string())),
         };
 
         let pathstr = BString::from_os_str(abspath.as_os_str());
@@ -80,7 +80,7 @@ impl Import for DefaultImporter {
 
         let code = match fs::read_to_string(&abspath) {
             Ok(code) => code,
-            Err(err) => return Err(err.to_string()),
+            Err(err) => return Err(StackTrace::new(err.to_string())),
         };
 
         let scope = Rc::new(RefCell::new(Scope::new_with_parent(ctx.root_scope.clone())));
@@ -92,7 +92,7 @@ impl Import for DefaultImporter {
         ));
         init_with_importer(&scope, childctx);
 
-        let mut reader = parse::Reader::new(&code.as_bytes());
+        let mut reader = parse::Reader::new(&code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
 
         let mut ret = ValRef::None;
         loop {
@@ -101,12 +101,7 @@ impl Import for DefaultImporter {
                     Some(expr) => expr,
                     None => break,
                 },
-                Err(err) => {
-                    return Err(format!(
-                        "{}: Parse error: {}:{}: {}",
-                        name, err.line, err.col, err.msg
-                    ))
-                }
+                Err(err) => return Err(StackTrace::new(format!("{}: Parse error: {}:{}: {}", name, err.line, err.col, err.msg))),
             };
 
             match eval(&expr, &scope) {
@@ -121,7 +116,7 @@ impl Import for DefaultImporter {
     }
 }
 
-fn import(importctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, String> {
+fn import(importctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
     match importctx.importer.borrow_mut().import(importctx, name) {
         Ok(val) => Ok(val.clone()),
         Err(err) => Err(err),
@@ -132,14 +127,14 @@ fn lib_import(
     importctx: &Rc<ImportCtx>,
     args: &[ValRef],
     _: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, String> {
+) -> Result<ValRef, StackTrace> {
     if args.len() != 1 {
-        return Err("'import' requires 1 argument".to_string());
+        return Err(StackTrace::new("'import' requires 1 argument".into()));
     }
 
     let path = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err("'import' requires the first argument to be a string".to_string()),
+        _ => return Err(StackTrace::new("'import' requires the first argument to be a string".into())),
     };
 
     import(importctx, path)

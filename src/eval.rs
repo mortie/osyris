@@ -9,7 +9,7 @@ use std::io;
 use std::rc::Rc;
 use std::cmp::PartialEq;
 
-pub type FuncVal = dyn Fn(&[ValRef], &Rc<RefCell<Scope>>) -> Result<ValRef, String>;
+pub type FuncVal = dyn Fn(&[ValRef], &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>;
 
 pub struct LambdaVal {
     pub args: Vec<BString>,
@@ -85,7 +85,7 @@ impl ValRef {
         }
     }
 
-    pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+    pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
         match self {
             ValRef::Quote(..) => call(self.clone(), &[], scope),
             val => Ok(val.clone()),
@@ -167,6 +167,41 @@ impl fmt::Debug for ValRef {
     }
 }
 
+pub struct StackTraceEntry {
+    pub location: ast::Location,
+    pub name: String,
+}
+
+pub struct StackTrace {
+    pub message: String,
+    pub trace: Vec<StackTraceEntry>,
+}
+
+impl StackTrace {
+    pub fn new(message: String) -> Self {
+        Self {
+            message,
+            trace: Vec::new(),
+        }
+    }
+
+    fn push(mut self, location: ast::Location, name: String) -> Self {
+        self.trace.push(StackTraceEntry { location, name });
+        self
+    }
+}
+
+impl fmt::Display for StackTrace {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)?;
+        for entry in &self.trace {
+            write!(f, "\n  {}: {}:{}: {}", entry.location.file, entry.location.line, entry.location.column, entry.name)?;
+        }
+
+        Ok(())
+    }
+}
+
 pub struct Scope {
     parent: Option<Rc<RefCell<Scope>>>,
     map: HashMap<BString, ValRef>,
@@ -228,7 +263,7 @@ impl Scope {
     }
 }
 
-pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     match func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Quote(exprs) => eval_multiple(&exprs[..], scope),
@@ -253,12 +288,12 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
         },
         ValRef::List(list) => {
             if args.len() != 1 {
-                return Err("Array lookup requires 1 argument".to_string());
+                return Err(StackTrace::new("Array lookup requires 1 argument".into()));
             }
 
             let idx = match args[0] {
                 ValRef::Number(idx) => idx,
-                _ => return Err("Attempt to index array with non-number".to_string()),
+                _ => return Err(StackTrace::new("Attempt to index array with non-number".into())),
             };
 
             if idx as usize > list.len() || idx < 0.0 {
@@ -269,12 +304,12 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
         }
         ValRef::Map(map) => {
             if args.len() != 1 {
-                return Err("Map lookup requires exactly 1 argument".to_string());
+                return Err(StackTrace::new("Map lookup requires exactly 1 argument".into()));
             }
 
             let key = match &args[0] {
                 ValRef::String(key) => key,
-                _ => return Err("Attempt to index map with non-string".to_string()),
+                _ => return Err(StackTrace::new("Attempt to index map with non-string".into())),
             };
 
             match map.as_ref().get(key.as_ref()) {
@@ -282,16 +317,16 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
                 None => Ok(ValRef::None),
             }
         }
-        _ => Err(format!("Attempt to call non-function {}", func)),
+        _ => Err(StackTrace::new(format!("Attempt to call non-function {}", func))),
     }
 }
 
 pub fn eval_call(
     exprs: &Vec<ast::Expression>,
     scope: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, String> {
+) -> Result<ValRef, StackTrace> {
     if exprs.len() < 1 {
-        return Err("Call list has no elements".to_string());
+        return Err(StackTrace::new("Call list has no elements".into()));
     }
 
     let mut args: Vec<ValRef> = Vec::new();
@@ -304,7 +339,7 @@ pub fn eval_call(
     call(func, args.as_slice(), scope)
 }
 
-fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     match lazy {
         ValRef::Func(func) => {
             func(&[], scope)
@@ -322,16 +357,25 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Str
     }
 }
 
-pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut val = match expr {
         ast::Expression::String(s) => Ok(ValRef::String(Rc::new(s.clone()))),
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
         ast::Expression::Lookup(name) => match scope.borrow().lookup(name) {
             Some(val) => Ok(val),
-            None => Err(format!("Variable '{}' doesn't exist", name)),
+            None => Err(StackTrace::new(format!("Variable '{}' doesn't exist", name))),
         }
-        ast::Expression::Call(exprs) => eval_call(exprs, scope),
-        ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
+        ast::Expression::Call(exprs, loc) => {
+            if exprs.len() == 0 {
+                return Ok(ValRef::None);
+            }
+
+            match eval_call(exprs, scope) {
+                Ok(val) => Ok(val),
+                Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
+            }
+        },
+        ast::Expression::Quote(exprs, _) => Ok(ValRef::Quote(exprs.clone())),
     }?;
 
     loop {
@@ -346,7 +390,7 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
 pub fn eval_multiple(
     exprs: &[ast::Expression],
     scope: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, String> {
+) -> Result<ValRef, StackTrace> {
     let mut retval = ValRef::None;
     for expr in exprs {
         retval = eval(expr, scope)?;

@@ -2,13 +2,20 @@ use super::bstring::BString;
 use std::fmt;
 use std::rc::Rc;
 
+#[derive(Debug, Clone)]
+pub struct Location {
+    pub line: u32,
+    pub column: u32,
+    pub file: Rc<BString>,
+}
+
 #[derive(Debug)]
 pub enum Expression {
     String(BString),
     Number(f64),
     Lookup(BString),
-    Call(Vec<Expression>),
-    Quote(Rc<Vec<Expression>>),
+    Call(Vec<Expression>, Location),
+    Quote(Rc<Vec<Expression>>, Location),
 }
 
 impl fmt::Display for Expression {
@@ -19,7 +26,7 @@ impl fmt::Display for Expression {
             }
             Expression::Number(num) => write!(f, "{}", num),
             Expression::Lookup(name) => write!(f, "{}", name),
-            Expression::Call(exprs) => {
+            Expression::Call(exprs, _) => {
                 write!(f, "(")?;
                 let mut first = true;
                 for expr in exprs {
@@ -32,7 +39,7 @@ impl fmt::Display for Expression {
                 }
                 write!(f, ")")
             }
-            Expression::Quote(exprs) => {
+            Expression::Quote(exprs, _) => {
                 write!(f, "'(")?;
                 let mut first = true;
                 for expr in exprs.iter() {

@@ -4,21 +4,23 @@ use super::bstring::BString;
 use std::rc::Rc;
 
 pub struct ParseError {
-    pub line: i32,
-    pub col: i32,
+    pub line: u32,
+    pub col: u32,
     pub msg: String,
 }
 
 pub struct Reader<'a> {
-    line: i32,
-    col: i32,
+    filename: Rc<BString>,
+    line: u32,
+    col: u32,
     string: &'a [u8],
     idx: usize,
 }
 
 impl<'a> Reader<'a> {
-    pub fn new(string: &'a [u8]) -> Self {
+    pub fn new(string: &'a [u8], filename: BString) -> Self {
         Self {
+            filename: Rc::new(filename),
             line: 1,
             col: 1,
             string,
@@ -57,6 +59,14 @@ impl<'a> Reader<'a> {
             line: self.line,
             col: self.col,
             msg,
+        }
+    }
+
+    fn loc(&self) -> ast::Location {
+        ast::Location {
+            file: self.filename.clone(),
+            line: self.line,
+            column: self.col,
         }
     }
 }
@@ -276,7 +286,7 @@ fn parse_infix<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
             None => return Err(r.err("Unexpected EOF".to_string())),
         };
 
-        lhs = ast::Expression::Call(vec![infix, lhs, rhs]);
+        lhs = ast::Expression::Call(vec![infix, lhs, rhs], r.loc());
     }
 
     Ok(lhs)
@@ -285,18 +295,18 @@ fn parse_infix<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
 fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '\''
     if r.peek() == b'(' {
-        Ok(ast::Expression::Quote(Rc::new(parse_list(r, b')')?)))
+        Ok(ast::Expression::Quote(Rc::new(parse_list(r, b')')?), r.loc()))
     } else {
         Ok(ast::Expression::String(read_name(r)?))
     }
 }
 
 fn parse_braced<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
-    Ok(ast::Expression::Quote(Rc::new(parse_list(r, b'}')?)))
+    Ok(ast::Expression::Quote(Rc::new(parse_list(r, b'}')?), r.loc()))
 }
 
 fn parse_call<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
-    Ok(ast::Expression::Call(parse_list(r, b')')?))
+    Ok(ast::Expression::Call(parse_list(r, b')')?, r.loc()))
 }
 
 fn parse_lookup<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
@@ -340,16 +350,16 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
             let ch = r.peek();
             if ch >= b'0' && ch <= b'9' {
                 let num = parse_number(r)?;
-                base = ast::Expression::Call(vec![base, num]);
+                base = ast::Expression::Call(vec![base, num], r.loc());
             } else if ch == b'[' {
                 let arg = parse_infix(r)?;
-                base = ast::Expression::Call(vec![base, arg]);
+                base = ast::Expression::Call(vec![base, arg], r.loc());
             } else if ch == b'(' {
                 let arg = parse_call(r)?;
-                base = ast::Expression::Call(vec![base, arg]);
+                base = ast::Expression::Call(vec![base, arg], r.loc());
             } else {
                 let name = read_name(r)?;
-                base = ast::Expression::Call(vec![base, ast::Expression::String(name)]);
+                base = ast::Expression::Call(vec![base, ast::Expression::String(name)], r.loc());
             }
         } else {
             break;

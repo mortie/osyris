@@ -52,7 +52,7 @@ fn main() {
         }
     };
 
-    let mut reader = parse::Reader::new(&string);
+    let mut reader = parse::Reader::new(&string, path.clone());
 
     let scope = Rc::new(RefCell::new(eval::Scope::new()));
     stdlib::init(&scope);

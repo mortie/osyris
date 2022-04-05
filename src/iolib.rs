@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{PortVal, Scope, ValRef};
+use super::eval::{PortVal, Scope, ValRef, StackTrace};
 use std::cell::RefCell;
 use std::fs;
 use std::io;
@@ -44,37 +44,37 @@ impl PortVal for TextFile {
     }
 }
 
-pub fn lib_open(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn lib_open(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 1 {
-        return Err("'open' requires 1 argument".to_string());
+        return Err(StackTrace::new("'open' requires 1 argument".into()));
     }
 
     let path = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err("'open' requires the first argument to be a string".to_string()),
+        _ => return Err(StackTrace::new("'open' requires the first argument to be a string".into())),
     };
 
     let f = match fs::File::open(path.to_path()) {
         Ok(f) => f,
-        Err(err) => return Err(format!("'open': {}: {}", path, err)),
+        Err(err) => return Err(StackTrace::new(format!("'open': {}: {}", path, err))),
     };
 
     Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
 }
 
-pub fn lib_create(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn lib_create(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 1 {
-        return Err("'create' requires 1 argument".to_string());
+        return Err(StackTrace::new("'create' requires 1 argument".into()));
     }
 
     let path = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err("'create' requires the first argument to be a string".to_string()),
+        _ => return Err(StackTrace::new("'create' requires the first argument to be a string".into())),
     };
 
     let f = match fs::File::create(path.to_path()) {
         Ok(f) => f,
-        Err(err) => return Err(format!("'create': {}: {}", path, err)),
+        Err(err) => return Err(StackTrace::new(format!("'create': {}: {}", path, err))),
     };
 
     Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
@@ -118,14 +118,14 @@ impl PortVal for ChildProc {
     }
 }
 
-pub fn lib_exec(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, String> {
+pub fn lib_exec(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
-        return Err("'exec' requires at least 1 argument".to_string());
+        return Err(StackTrace::new("'exec' requires at least 1 argument".into()));
     }
 
     let name = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err("'exec' requires its arguments to be strings".to_string()),
+        _ => return Err(StackTrace::new("'exec' requires its arguments to be strings".into())),
     };
 
     let mut cmd = Command::new(name.to_os_str());
@@ -133,12 +133,12 @@ pub fn lib_exec(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Strin
     for idx in 1..args.len() {
         match &args[idx] {
             ValRef::String(s) => cmd.arg(s.to_os_str()),
-            _ => return Err("'exec' requires its arguments to be strings".to_string()),
+            _ => return Err(StackTrace::new("'exec' requires its arguments to be strings".into())),
         };
     }
 
     match cmd.spawn() {
-        Err(err) => Err(format!("exec: {}", err)),
+        Err(err) => Err(StackTrace::new(format!("exec: {}", err))),
         Ok(child) => Ok(ValRef::Port(Rc::new(RefCell::new(ChildProc { c: child })))),
     }
 }
