@@ -64,7 +64,7 @@ impl Import for DefaultImporter {
 
         let abspath = match fs::canonicalize(path) {
             Ok(path) => path,
-            Err(err) => return Err(StackTrace::new(err.to_string())),
+            Err(err) => return Err(StackTrace::from_string(err.to_string())),
         };
 
         let pathstr = BString::from_os_str(abspath.as_os_str());
@@ -80,7 +80,7 @@ impl Import for DefaultImporter {
 
         let code = match fs::read_to_string(&abspath) {
             Ok(code) => code,
-            Err(err) => return Err(StackTrace::new(err.to_string())),
+            Err(err) => return Err(StackTrace::from_string(err.to_string())),
         };
 
         let scope = Rc::new(RefCell::new(Scope::new_with_parent(ctx.root_scope.clone())));
@@ -101,7 +101,7 @@ impl Import for DefaultImporter {
                     Some(expr) => expr,
                     None => break,
                 },
-                Err(err) => return Err(StackTrace::new(format!("{}: Parse error: {}:{}: {}", name, err.line, err.col, err.msg))),
+                Err(err) => return Err(StackTrace::from_string(format!("{}: Parse error: {}:{}: {}", name, err.line, err.col, err.msg))),
             };
 
             match eval(&expr, &scope) {
@@ -129,12 +129,12 @@ fn lib_import(
     _: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
     if args.len() != 1 {
-        return Err(StackTrace::new("'import' requires 1 argument".into()));
+        return Err(StackTrace::from_str("'import' requires 1 argument".into()));
     }
 
     let path = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err(StackTrace::new("'import' requires the first argument to be a string".into())),
+        _ => return Err(StackTrace::from_str("'import' requires the first argument to be a string".into())),
     };
 
     import(importctx, path)

@@ -173,12 +173,26 @@ pub struct StackTraceEntry {
 }
 
 pub struct StackTrace {
-    pub message: String,
+    pub message: ValRef,
     pub trace: Vec<StackTraceEntry>,
 }
 
 impl StackTrace {
-    pub fn new(message: String) -> Self {
+    pub fn from_str(message: &str) -> Self {
+        Self {
+            message: ValRef::String(Rc::new(BString::from_str(message))),
+            trace: Vec::new(),
+        }
+    }
+
+    pub fn from_string(message: String) -> Self {
+        Self {
+            message: ValRef::String(Rc::new(BString::from_string(message))),
+            trace: Vec::new(),
+        }
+    }
+
+    pub fn from_val(message: ValRef) -> Self {
         Self {
             message,
             trace: Vec::new(),
@@ -193,7 +207,11 @@ impl StackTrace {
 
 impl fmt::Display for StackTrace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)?;
+        match &self.message {
+            ValRef::String(bs) => write!(f, "{}", String::from_utf8_lossy(bs.as_bytes())),
+            _ => write!(f, "{}", self.message),
+        }?;
+
         for entry in &self.trace {
             write!(f, "\n  {}: {}:{}: {}", entry.location.file, entry.location.line, entry.location.column, entry.name)?;
         }
@@ -288,12 +306,12 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
         },
         ValRef::List(list) => {
             if args.len() != 1 {
-                return Err(StackTrace::new("Array lookup requires 1 argument".into()));
+                return Err(StackTrace::from_str("Array lookup requires 1 argument"));
             }
 
             let idx = match args[0] {
                 ValRef::Number(idx) => idx,
-                _ => return Err(StackTrace::new("Attempt to index array with non-number".into())),
+                _ => return Err(StackTrace::from_str("Attempt to index array with non-number")),
             };
 
             if idx as usize > list.len() || idx < 0.0 {
@@ -304,12 +322,12 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
         }
         ValRef::Map(map) => {
             if args.len() != 1 {
-                return Err(StackTrace::new("Map lookup requires exactly 1 argument".into()));
+                return Err(StackTrace::from_str("Map lookup requires exactly 1 argument"));
             }
 
             let key = match &args[0] {
                 ValRef::String(key) => key,
-                _ => return Err(StackTrace::new("Attempt to index map with non-string".into())),
+                _ => return Err(StackTrace::from_str("Attempt to index map with non-string")),
             };
 
             match map.as_ref().get(key.as_ref()) {
@@ -317,7 +335,7 @@ pub fn call(func: ValRef, args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result
                 None => Ok(ValRef::None),
             }
         }
-        _ => Err(StackTrace::new(format!("Attempt to call non-function {}", func))),
+        _ => Err(StackTrace::from_string(format!("Attempt to call non-function {}", func))),
     }
 }
 
@@ -326,7 +344,7 @@ pub fn eval_call(
     scope: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
     if exprs.len() < 1 {
-        return Err(StackTrace::new("Call list has no elements".into()));
+        return Err(StackTrace::from_str("Call list has no elements".into()));
     }
 
     let mut args: Vec<ValRef> = Vec::new();
@@ -363,7 +381,7 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
         ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
         ast::Expression::Lookup(name) => match scope.borrow().lookup(name) {
             Some(val) => Ok(val),
-            None => Err(StackTrace::new(format!("Variable '{}' doesn't exist", name))),
+            None => Err(StackTrace::from_string(format!("Variable '{}' doesn't exist", name))),
         }
         ast::Expression::Call(exprs, loc) => {
             if exprs.len() == 0 {
