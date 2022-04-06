@@ -414,7 +414,7 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
                 Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
             }
         }
-        ast::Expression::Quote(exprs, _) => Ok(ValRef::Quote(exprs.clone())),
+        ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
     }?;
 
     loop {

@@ -295,20 +295,14 @@ fn parse_infix<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
 fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '\''
     if r.peek() == b'(' {
-        Ok(ast::Expression::Quote(
-            Rc::new(parse_list(r, b')')?),
-            r.loc(),
-        ))
+        Ok(ast::Expression::Quote(Rc::new(parse_list(r, b')')?)))
     } else {
         Ok(ast::Expression::String(read_name(r)?))
     }
 }
 
 fn parse_braced<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
-    Ok(ast::Expression::Quote(
-        Rc::new(parse_list(r, b'}')?),
-        r.loc(),
-    ))
+    Ok(ast::Expression::Quote(Rc::new(parse_list(r, b'}')?)))
 }
 
 fn parse_call<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
