@@ -72,7 +72,7 @@ fn main() -> Result<(), String> {
 ## Syntax
 
 Like most LISPs, the grammar is extremely simple. There are really only strings, numbers,
-identifiers, function calls, and quoted lists.
+identifiers, function calls, and quoted lists ("blocks").
 
 The basics are:
 
@@ -82,16 +82,16 @@ The basics are:
 
 Function calls are an opening brace, followed by expressions, followed by a closing brace,
 like this: `(print 10 "hello" name)`. The value of the first expression is expected to be
-a quoted list (or a built-in function).
+a block (or a built-in function).
 
-Quoted lists are like function calls but preceded by a quote: `'(print 10 "hello" name)`.
-When evaluated, a quoted list becomes a list of expressions. It's common for functions
-to take a quoted list as an argument as a kind of callback function. Because they're
+Blocks are like function calls but preceded by a quote: `'(print 10 "hello" name)`.
+When evaluated, a block becomes a list of expressions. It's common for functions
+to take a block as an argument as a kind of callback function. Because they're
 so common, Osyris lets you write them with braces instead: `{print 10 "hello" name}`.
 
 ## Examples
 
-`if` is a function which takes a condition and one or two quotes:
+`if` is a function which takes a condition and one or two blocks:
 
 ```osyris
 (if (> 10 20)
@@ -110,7 +110,7 @@ so common, Osyris lets you write them with braces instead: `{print 10 "hello" na
 
 ---
 
-You can define functions by defining variables whose bodies are quotes:
+You can define functions by defining variables whose bodies are blocks:
 
 ```osyris
 (def 'say-hello {print "Hello!"})
@@ -181,7 +181,7 @@ These values are populated when you call `stdlib::init`:
       'age 34
       'profession "Programmer")
 ```
-* `(lazy <quoted list>)`: Create a lazy variable.
+* `(lazy <block>)`: Create a lazy variable.
 * `(read <port> [size])`: Read from `port`. If `size` is provided, read a chunk.
 * `(write <port> <data>)`: Write `data` to `port`.
 * `(seek <port> <offset> [whence])`: Seek to `offset`. By default, `offset` is relative

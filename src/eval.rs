@@ -39,7 +39,7 @@ pub enum ValRef {
     Number(f64),
     Bool(bool),
     String(Rc<BString>),
-    Quote(Rc<Vec<ast::Expression>>),
+    Block(Rc<Vec<ast::Expression>>),
     List(Rc<Vec<ValRef>>),
     Map(Rc<HashMap<BString, ValRef>>),
     Func(Rc<FuncVal>),
@@ -77,7 +77,7 @@ impl ValRef {
             (ValRef::None, ValRef::None) => true,
             (ValRef::Number(a), ValRef::Number(b)) => a == b,
             (ValRef::String(a), ValRef::String(b)) => a == b,
-            (ValRef::Quote(a), ValRef::Quote(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Block(a), ValRef::Block(b)) => Rc::ptr_eq(a, b),
             (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
             (ValRef::List(a), ValRef::List(b)) => Rc::ptr_eq(a, b),
             (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
@@ -87,7 +87,7 @@ impl ValRef {
 
     pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
         match self {
-            ValRef::Quote(..) => call(self.clone(), &[], scope),
+            ValRef::Block(..) => call(self.clone(), &[], scope),
             val => Ok(val.clone()),
         }
     }
@@ -106,7 +106,7 @@ impl Clone for ValRef {
             Self::Number(num) => Self::Number(*num),
             Self::Bool(b) => Self::Bool(*b),
             Self::String(s) => Self::String(s.clone()),
-            Self::Quote(q) => Self::Quote(q.clone()),
+            Self::Block(q) => Self::Block(q.clone()),
             Self::List(l) => Self::List(l.clone()),
             Self::Map(m) => Self::Map(m.clone()),
             Self::Func(f) => Self::Func(f.clone()),
@@ -126,7 +126,7 @@ impl fmt::Display for ValRef {
             Self::Number(num) => write!(f, "{}", num),
             Self::Bool(b) => write!(f, "{}", b),
             Self::String(s) => write!(f, "{:?}", s),
-            Self::Quote(q) => write!(f, "{:?}", q),
+            Self::Block(q) => write!(f, "{:?}", q),
             Self::Map(m) => {
                 write!(f, "{{")?;
                 let mut first = true;
@@ -292,7 +292,7 @@ pub fn call(
 ) -> Result<ValRef, StackTrace> {
     match func {
         ValRef::Func(func) => func(args, scope),
-        ValRef::Quote(exprs) => eval_multiple(&exprs[..], scope),
+        ValRef::Block(exprs) => eval_multiple(&exprs[..], scope),
         ValRef::Lambda(l) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
@@ -388,7 +388,7 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
             }
             eval_multiple(&l.body[..], &subscope)
         }
-        ValRef::Quote(exprs) => eval_multiple(exprs, &scope),
+        ValRef::Block(exprs) => eval_multiple(exprs, &scope),
         _ => Ok(lazy.clone()),
     }
 }
@@ -414,7 +414,7 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
                 Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
             }
         }
-        ast::Expression::Quote(exprs) => Ok(ValRef::Quote(exprs.clone())),
+        ast::Expression::Block(exprs) => Ok(ValRef::Block(exprs.clone())),
     }?;
 
     loop {

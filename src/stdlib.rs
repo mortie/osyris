@@ -255,10 +255,10 @@ fn lib_if(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
 fn lib_match(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for arg in args {
         let exprs = match arg {
-            ValRef::Quote(exprs) => exprs,
+            ValRef::Block(exprs) => exprs,
             _ => {
                 return Err(StackTrace::from_str(
-                    "'match' requires all arguments to be quotes",
+                    "'match' requires all arguments to be blocks",
                 ))
             }
         };
@@ -283,7 +283,7 @@ fn lib_while(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
     }
 
     let cond = match &args[0] {
-        ValRef::Quote(func) => func,
+        ValRef::Block(func) => func,
         _ => {
             return Err(StackTrace::from_str(
                 "'while' expects the firt argument to be a function",
@@ -293,7 +293,7 @@ fn lib_while(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
 
     let body = if args.len() >= 1 {
         match &args[1] {
-            ValRef::Quote(func) => Some(func),
+            ValRef::Block(func) => Some(func),
             _ => {
                 return Err(StackTrace::from_str(
                     "'while' expects the second argument to be a function",
@@ -358,10 +358,10 @@ fn lib_bind(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     }
 
     match &args[args.len() - 1] {
-        ValRef::Quote(q) => eval::eval_call(q.as_ref(), scope),
+        ValRef::Block(q) => eval::eval_call(q.as_ref(), scope),
         _ => {
             return Err(StackTrace::from_str(
-                "'bind' expects its last argument to be a quote",
+                "'bind' expects its last argument to be a blocks",
             ))
         }
     }
@@ -385,10 +385,10 @@ fn lib_with(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     }
 
     match &args[args.len() - 1] {
-        ValRef::Quote(q) => eval::eval_call(q.as_ref(), scope),
+        ValRef::Block(q) => eval::eval_call(q.as_ref(), scope),
         _ => {
             return Err(StackTrace::from_str(
-                "'bind' expects its last argument to be a quote",
+                "'bind' expects its last argument to be a block",
             ))
         }
     }
@@ -552,10 +552,10 @@ fn lib_lambda(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
     for idx in 0..args.len() {
         match &args[idx] {
             eval::ValRef::String(bs) => argnames.push(bs.as_ref().clone()),
-            eval::ValRef::Quote(q) => {
+            eval::ValRef::Block(q) => {
                 if idx != args.len() - 1 {
                     return Err(StackTrace::from_str(
-                        "'lambda' requires the quote to be the last argument",
+                        "'lambda' requires the block to be the last argument",
                     ));
                 }
 
@@ -566,13 +566,13 @@ fn lib_lambda(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
             }
             _ => {
                 return Err(StackTrace::from_str(
-                    "'lambda' requires arguments to be quotes or strings",
+                    "'lambda' requires arguments to be blocks or strings",
                 ))
             }
         }
     }
 
-    Err(StackTrace::from_str("'lambda' requires a quote argument"))
+    Err(StackTrace::from_str("'lambda' requires a block argument"))
 }
 
 fn lib_list(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {

@@ -15,7 +15,7 @@ pub enum Expression {
     Number(f64),
     Lookup(BString),
     Call(Vec<Expression>, Location),
-    Quote(Rc<Vec<Expression>>),
+    Block(Rc<Vec<Expression>>),
 }
 
 impl fmt::Display for Expression {
@@ -39,7 +39,7 @@ impl fmt::Display for Expression {
                 }
                 write!(f, ")")
             }
-            Expression::Quote(exprs) => {
+            Expression::Block(exprs) => {
                 write!(f, "'(")?;
                 let mut first = true;
                 for expr in exprs.iter() {
