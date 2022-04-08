@@ -169,7 +169,7 @@ fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     Err(r.err("Unexpected EOF".to_string()))
 }
 
-fn parse_digit(ch: u8, base: u8) -> Result<u8, ()> {
+fn read_digit(ch: u8, base: u8) -> Result<u8, ()> {
     let num;
     if ch >= b'0' && ch <= b'9' {
         num = ch - b'0';
@@ -188,12 +188,12 @@ fn parse_digit(ch: u8, base: u8) -> Result<u8, ()> {
     Ok(num)
 }
 
-fn parse_int<'a>(r: &mut Reader<'a>, base: u8) -> (u64, u64) {
+fn read_int<'a>(r: &mut Reader<'a>, base: u8) -> (u64, u64) {
     let mut int: u64 = 0;
     let mut div: u64 = 1;
     while !r.eof() {
         let ch = r.peek();
-        let digit = match parse_digit(ch, base) {
+        let digit = match read_digit(ch, base) {
             Ok(d) => d,
             Err(..) => break,
         };
@@ -206,12 +206,12 @@ fn parse_int<'a>(r: &mut Reader<'a>, base: u8) -> (u64, u64) {
     return (int, div);
 }
 
-fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn read_number<'a>(r: &mut Reader<'a>) -> Result<f64, ParseError> {
     let mut base = 10u8;
-    let (mut integral, _) = parse_int(r, 10);
+    let (mut integral, _) = read_int(r, 10);
     let mut decimal = 0.0;
     if r.eof() {
-        return Ok(ast::Expression::Number(integral as f64));
+        return Ok(integral as f64);
     }
 
     if r.peek() == b'#' {
@@ -221,12 +221,12 @@ fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
         }
 
         base = integral as u8;
-        integral = parse_int(r, base).0;
+        integral = read_int(r, base).0;
     }
 
     if r.peek() == b'.' {
         r.consume();
-        let (i, div) = parse_int(r, base);
+        let (i, div) = read_int(r, base);
         decimal = (i as f64) / (div as f64);
     }
 
@@ -234,7 +234,11 @@ fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
         return Err(r.err("Invalid number literal".to_string()));
     }
 
-    Ok(ast::Expression::Number(integral as f64 + decimal))
+    Ok(integral as f64 + decimal)
+}
+
+fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+    Ok(ast::Expression::Number(read_number(r)?))
 }
 
 fn parse_list<'a>(r: &mut Reader<'a>, closer: u8) -> Result<Vec<ast::Expression>, ParseError> {
@@ -301,6 +305,19 @@ fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     }
 }
 
+fn parse_dash<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+    r.consume(); // '-'
+    let ch = r.peek();
+    if ch >= b'0' && ch <= b'9' {
+        Ok(ast::Expression::Number(-read_number(r)?))
+    } else if is_space(ch) {
+        Ok(ast::Expression::Lookup(BString::from_str("-")))
+    } else {
+        let s = read_name(r)?;
+        Ok(ast::Expression::Lookup(BString::from_vec([b"-", s.as_bytes()].concat())))
+    }
+}
+
 fn parse_braced<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     Ok(ast::Expression::Block(Rc::new(parse_list(r, b'}')?)))
 }
@@ -325,6 +342,8 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
         parse_string(r)?
     } else if ch >= b'0' && ch <= b'9' {
         parse_number(r)?
+    } else if ch == b'-' {
+        parse_dash(r)?
     } else if ch == b'\'' {
         parse_quote(r)?
     } else if ch == b'(' {
