@@ -65,7 +65,7 @@ fn lib_sub(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     } else if args.len() == 1 {
-        return Ok(ValRef::Number(-args[0].to_num()))
+        return Ok(ValRef::Number(-args[0].to_num()));
     }
 
     let mut num = args[0].to_num();
@@ -93,7 +93,7 @@ fn lib_div(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     } else if args.len() == 1 {
-        return Ok(ValRef::Number(1.0 / args[0].to_num()))
+        return Ok(ValRef::Number(1.0 / args[0].to_num()));
     }
 
     let mut num = args[0].to_num();

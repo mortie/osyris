@@ -314,7 +314,9 @@ fn parse_dash<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
         Ok(ast::Expression::Lookup(BString::from_str("-")))
     } else {
         let s = read_name(r)?;
-        Ok(ast::Expression::Lookup(BString::from_vec([b"-", s.as_bytes()].concat())))
+        Ok(ast::Expression::Lookup(BString::from_vec(
+            [b"-", s.as_bytes()].concat(),
+        )))
     }
 }
 
