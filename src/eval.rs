@@ -44,6 +44,7 @@ pub enum ValRef {
     Dict(Rc<RefCell<HashMap<BString, ValRef>>>),
     Func(Rc<FuncVal>),
     Lambda(Rc<LambdaVal>),
+    BoundLambda(Rc<LambdaVal>, Box<ValRef>),
     Lazy(Rc<ValRef>),
     ProtectedLazy(Rc<ValRef>),
     Native(Rc<dyn Any>),
@@ -111,6 +112,7 @@ impl Clone for ValRef {
             Self::Dict(m) => Self::Dict(m.clone()),
             Self::Func(f) => Self::Func(f.clone()),
             Self::Lambda(l) => Self::Lambda(l.clone()),
+            Self::BoundLambda(l, s) => Self::BoundLambda(l.clone(), s.clone()),
             Self::Lazy(val) => Self::Lazy(val.clone()),
             Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
             Self::Native(n) => Self::Native(n.clone()),
@@ -153,6 +155,9 @@ impl fmt::Display for ValRef {
             }
             Self::Func(func) => write!(f, "(func {:p})", func.as_ref()),
             Self::Lambda(l) => write!(f, "(lambda {:?} {:?})", l.args, l.body),
+            Self::BoundLambda(l, s) => {
+                write!(f, "(bound (lambda {:?} {:?}), self={})", l.args, l.body, s)
+            }
             Self::Lazy(val) => write!(f, "(lazy {})", val),
             Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
             Self::Native(n) => write!(f, "(native {:p})", n.as_ref()),
@@ -307,7 +312,7 @@ pub fn call(
     args: &[ValRef],
     scope: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
-    match func {
+    match &func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Block(exprs) => eval_multiple(&exprs[..], scope),
         ValRef::Lambda(l) => {
@@ -328,6 +333,30 @@ pub fn call(
                     BString::from_str("args"),
                     ValRef::List(Rc::new(RefCell::new(args.to_vec()))),
                 );
+            }
+
+            eval_multiple(&l.body[..], &subscope)
+        }
+        ValRef::BoundLambda(l, selfval) => {
+            let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
+
+            {
+                let mut ss = subscope.borrow_mut();
+
+                for idx in 0..l.args.len() {
+                    if idx >= args.len() {
+                        break;
+                    }
+
+                    ss.insert(l.args[idx].clone(), args[idx].clone());
+                }
+
+                ss.insert(
+                    BString::from_str("args"),
+                    ValRef::List(Rc::new(RefCell::new(args.to_vec()))),
+                );
+
+                ss.insert(BString::from_str("self"), selfval.as_ref().clone());
             }
 
             eval_multiple(&l.body[..], &subscope)
@@ -364,8 +393,11 @@ pub fn call(
                 _ => return Err(StackTrace::from_str("Attempt to index map with non-string")),
             };
 
-            match map.as_ref().borrow().get(key.as_ref()) {
-                Some(val) => Ok(val.clone()),
+            match map.borrow().get(key.as_ref()) {
+                Some(val) => match val {
+                    ValRef::Lambda(l) => Ok(ValRef::BoundLambda(l.clone(), Box::new(func.clone()))),
+                    _ => Ok(val.clone()),
+                },
                 None => Ok(ValRef::None),
             }
         }
