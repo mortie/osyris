@@ -239,6 +239,36 @@ fn lib_set(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
     }
 }
 
+fn lib_mutate(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() < 2 {
+        return Err(StackTrace::from_str("'mutate' requires at least 3 arguments"));
+    }
+
+    let name = match &args[0] {
+        ValRef::String(s) => s,
+        _ => return Err(StackTrace::from_str("'mutate' requires its first argument to be a string")),
+    };
+
+    let func = &args[1];
+
+    let (val, s) = match Scope::rlookup(scope, &name) {
+        Some(val) => val,
+        None => return Err(StackTrace::from_string(format!("Variable '{}' doesn't exist", name))),
+    };
+
+    scope.borrow_mut().remove(name.as_ref());
+
+    let mut params = Vec::new();
+    params.push(val);
+    for idx in 2..args.len() {
+        params.push(args[idx].clone());
+    }
+
+    let res = eval::call(func.clone(), params.as_slice(), scope)?;
+    s.borrow_mut().insert(name.as_ref().clone(), res.clone());
+    Ok(res)
+}
+
 fn lib_if(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 && args.len() != 3 {
         return Err(StackTrace::from_str("'if' requires 2 or 3 arguments"));
@@ -335,7 +365,7 @@ fn lib_bind(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     }
 
     let vals = match &args[0] {
-        ValRef::List(l) => l,
+        ValRef::List(l) => l.borrow(),
         _ => {
             return Err(StackTrace::from_str(
                 "'bind' expects first argument to be a list",
@@ -580,7 +610,53 @@ fn lib_lambda(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
 }
 
 fn lib_list(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    Ok(ValRef::List(Rc::new(args.to_vec())))
+    Ok(ValRef::List(Rc::new(RefCell::new(args.to_vec()))))
+}
+
+fn lib_list_push(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() < 1 {
+        return Err(StackTrace::from_str("'list-push' requires at least 1 argument"));
+    }
+
+    let lst = match &args[0] {
+        ValRef::List(lst) => lst,
+        _ => return Err(StackTrace::from_str("'list-push' requires its first argument to be a list"))
+    };
+
+    let lst = if Rc::strong_count(&lst) == 1 {
+        (*lst).clone()
+    } else {
+        Rc::new((**lst).clone())
+    };
+
+    {
+        let mut lstmut = lst.borrow_mut();
+        for idx in 1..args.len() {
+            lstmut.push(args[idx].clone())
+        }
+    }
+
+    Ok(ValRef::List(lst))
+}
+
+fn lib_list_pop(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() != 1 {
+        return Err(StackTrace::from_str("'list-pop' requires 1 argument"));
+    }
+
+    let lst = match &args[0] {
+        ValRef::List(lst) => lst,
+        _ => return Err(StackTrace::from_str("'list-pop' requires its argument to be a list"))
+    };
+
+    let lst = if Rc::strong_count(&lst) == 1 {
+        (*lst).clone()
+    } else {
+        Rc::new((**lst).clone())
+    };
+
+    lst.borrow_mut().pop();
+    Ok(ValRef::List(lst))
 }
 
 fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
@@ -590,7 +666,7 @@ fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
         ));
     }
 
-    let mut map: HashMap<BString, ValRef> = HashMap::new();
+    let mut dict: HashMap<BString, ValRef> = HashMap::new();
     let mut idx = 0;
     while idx < args.len() {
         let key = &args[idx];
@@ -603,10 +679,53 @@ fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
             _ => return Err(StackTrace::from_str("'dict' requires keys to be strings")),
         };
 
-        map.insert(keystr.as_ref().clone(), val.clone());
+        dict.insert(keystr.as_ref().clone(), val.clone());
     }
 
-    Ok(ValRef::Map(Rc::new(map)))
+    Ok(ValRef::Dict(Rc::new(RefCell::new(dict))))
+}
+
+fn lib_dict_set(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() < 1 {
+        return Err(StackTrace::from_str("'dict-set' requires at least 1 argument"));
+    }
+
+    if args.len() % 2 != 1 {
+        return Err(StackTrace::from_str(
+            "'dict-set' requires an odd number of arguments",
+        ));
+    }
+
+    let dict = match &args[0] {
+        ValRef::Dict(d) => d,
+        _ => return Err(StackTrace::from_str("'dict-set' requires its argument to be a dict"))
+    };
+
+    let dict = if Rc::strong_count(&dict) == 1 {
+        (*dict).clone()
+    } else {
+        Rc::new((**dict).clone())
+    };
+
+    {
+        let mut dictmut = dict.borrow_mut();
+        let mut idx = 1;
+        while idx < args.len() {
+            let key = &args[idx];
+            idx += 1;
+            let val = &args[idx];
+            idx += 1;
+
+            let keystr = match key {
+                ValRef::String(s) => s,
+                _ => return Err(StackTrace::from_str("'dict-set' requires keys to be strings")),
+            };
+
+            dictmut.insert(keystr.as_ref().clone(), val.clone());
+        }
+    }
+
+    Ok(ValRef::Dict(dict))
 }
 
 pub struct StdIo {
@@ -639,12 +758,16 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("||", Rc::new(lib_or));
     s.put_func("&&", Rc::new(lib_and));
     s.put_func("??", Rc::new(lib_first));
+
     s.put_func("def", Rc::new(lib_def));
     s.put_func("set", Rc::new(lib_set));
+    s.put_func("mutate", Rc::new(lib_mutate));
+
     s.put_func("if", Rc::new(lib_if));
     s.put_func("match", Rc::new(lib_match));
     s.put_func("while", Rc::new(lib_while));
     s.put_func("do", Rc::new(lib_do));
+
     s.put_func("bind", Rc::new(lib_bind));
     s.put_func("with", Rc::new(lib_with));
     s.put_func("read", Rc::new(lib_read));
@@ -659,8 +782,11 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("lazy", Rc::new(lib_lazy));
 
     s.put_func("list", Rc::new(lib_list));
+    s.put_func("list-push", Rc::new(lib_list_push));
+    s.put_func("list-pop", Rc::new(lib_list_pop));
 
     s.put_func("dict", Rc::new(lib_dict));
+    s.put_func("dict-set", Rc::new(lib_dict_set));
 }
 
 pub struct WritePort {

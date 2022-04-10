@@ -40,8 +40,8 @@ pub enum ValRef {
     Bool(bool),
     String(Rc<BString>),
     Block(Rc<Vec<ast::Expression>>),
-    List(Rc<Vec<ValRef>>),
-    Map(Rc<HashMap<BString, ValRef>>),
+    List(Rc<RefCell<Vec<ValRef>>>),
+    Dict(Rc<RefCell<HashMap<BString, ValRef>>>),
     Func(Rc<FuncVal>),
     Lambda(Rc<LambdaVal>),
     Lazy(Rc<ValRef>),
@@ -108,7 +108,7 @@ impl Clone for ValRef {
             Self::String(s) => Self::String(s.clone()),
             Self::Block(q) => Self::Block(q.clone()),
             Self::List(l) => Self::List(l.clone()),
-            Self::Map(m) => Self::Map(m.clone()),
+            Self::Dict(m) => Self::Dict(m.clone()),
             Self::Func(f) => Self::Func(f.clone()),
             Self::Lambda(l) => Self::Lambda(l.clone()),
             Self::Lazy(val) => Self::Lazy(val.clone()),
@@ -127,10 +127,10 @@ impl fmt::Display for ValRef {
             Self::Bool(b) => write!(f, "{}", b),
             Self::String(s) => write!(f, "{:?}", s),
             Self::Block(q) => write!(f, "{:?}", q),
-            Self::Map(m) => {
+            Self::Dict(m) => {
                 write!(f, "{{")?;
                 let mut first = true;
-                for (key, val) in m.as_ref() {
+                for (key, val) in m.as_ref().borrow().iter() {
                     if !first {
                         write!(f, ", ")?;
                     }
@@ -142,7 +142,7 @@ impl fmt::Display for ValRef {
             }
             Self::List(l) => {
                 write!(f, "[")?;
-                let vec = l.as_ref();
+                let vec = l.borrow();
                 for idx in 0..vec.len() {
                     if idx != 0 {
                         write!(f, ", ")?;
@@ -254,6 +254,19 @@ impl Scope {
         }
     }
 
+    pub fn rlookup(
+        scope: &Rc<RefCell<Scope>>,
+        name: &BString
+    ) -> Option<(ValRef, Rc<RefCell<Scope>>)> {
+        match scope.borrow().map.get(name) {
+            Some(r) => Some((r.clone(), scope.clone())),
+            None => match &scope.borrow().parent {
+                Some(parent) => Scope::rlookup(parent, name),
+                None => None,
+            }
+        }
+    }
+
     pub fn insert(&mut self, name: BString, val: ValRef) {
         self.map.insert(name, val);
     }
@@ -267,6 +280,10 @@ impl Scope {
         } else {
             false
         }
+    }
+
+    pub fn remove(&mut self, name: &BString) {
+        self.map.remove(name);
     }
 
     pub fn put(&mut self, name: &str, val: ValRef) {
@@ -309,7 +326,7 @@ pub fn call(
 
                 ss.insert(
                     BString::from_str("args"),
-                    ValRef::List(Rc::new(args.to_vec())),
+                    ValRef::List(Rc::new(RefCell::new(args.to_vec()))),
                 );
             }
 
@@ -329,16 +346,16 @@ pub fn call(
                 }
             };
 
-            if idx as usize > list.len() || idx < 0.0 {
+            if idx as usize > list.borrow().len() || idx < 0.0 {
                 Ok(ValRef::None)
             } else {
-                Ok(list.as_ref()[idx as usize].clone())
+                Ok(list.borrow()[idx as usize].clone())
             }
         }
-        ValRef::Map(map) => {
+        ValRef::Dict(map) => {
             if args.len() != 1 {
                 return Err(StackTrace::from_str(
-                    "Map lookup requires exactly 1 argument",
+                    "Dict lookup requires exactly 1 argument",
                 ));
             }
 
@@ -347,7 +364,7 @@ pub fn call(
                 _ => return Err(StackTrace::from_str("Attempt to index map with non-string")),
             };
 
-            match map.as_ref().get(key.as_ref()) {
+            match map.as_ref().borrow().get(key.as_ref()) {
                 Some(val) => Ok(val.clone()),
                 None => Ok(ValRef::None),
             }
@@ -384,7 +401,7 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             {
                 let mut ss = subscope.borrow_mut();
-                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(vec![])));
+                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(RefCell::new(vec![]))));
             }
             eval_multiple(&l.body[..], &subscope)
         }
