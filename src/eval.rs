@@ -256,14 +256,14 @@ impl Scope {
 
     pub fn rlookup(
         scope: &Rc<RefCell<Scope>>,
-        name: &BString
+        name: &BString,
     ) -> Option<(ValRef, Rc<RefCell<Scope>>)> {
         match scope.borrow().map.get(name) {
             Some(r) => Some((r.clone(), scope.clone())),
             None => match &scope.borrow().parent {
                 Some(parent) => Scope::rlookup(parent, name),
                 None => None,
-            }
+            },
         }
     }
 
@@ -401,7 +401,10 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             {
                 let mut ss = subscope.borrow_mut();
-                ss.insert(BString::from_str("args"), ValRef::List(Rc::new(RefCell::new(vec![]))));
+                ss.insert(
+                    BString::from_str("args"),
+                    ValRef::List(Rc::new(RefCell::new(vec![]))),
+                );
             }
             eval_multiple(&l.body[..], &subscope)
         }

@@ -241,19 +241,30 @@ fn lib_set(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
 
 fn lib_mutate(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 2 {
-        return Err(StackTrace::from_str("'mutate' requires at least 3 arguments"));
+        return Err(StackTrace::from_str(
+            "'mutate' requires at least 3 arguments",
+        ));
     }
 
     let name = match &args[0] {
         ValRef::String(s) => s,
-        _ => return Err(StackTrace::from_str("'mutate' requires its first argument to be a string")),
+        _ => {
+            return Err(StackTrace::from_str(
+                "'mutate' requires its first argument to be a string",
+            ))
+        }
     };
 
     let func = &args[1];
 
     let (val, s) = match Scope::rlookup(scope, &name) {
         Some(val) => val,
-        None => return Err(StackTrace::from_string(format!("Variable '{}' doesn't exist", name))),
+        None => {
+            return Err(StackTrace::from_string(format!(
+                "Variable '{}' doesn't exist",
+                name
+            )))
+        }
     };
 
     scope.borrow_mut().remove(name.as_ref());
@@ -615,12 +626,18 @@ fn lib_list(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 
 fn lib_list_push(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
-        return Err(StackTrace::from_str("'list-push' requires at least 1 argument"));
+        return Err(StackTrace::from_str(
+            "'list-push' requires at least 1 argument",
+        ));
     }
 
     let lst = match &args[0] {
         ValRef::List(lst) => lst,
-        _ => return Err(StackTrace::from_str("'list-push' requires its first argument to be a list"))
+        _ => {
+            return Err(StackTrace::from_str(
+                "'list-push' requires its first argument to be a list",
+            ))
+        }
     };
 
     let lst = if Rc::strong_count(&lst) == 1 {
@@ -646,7 +663,11 @@ fn lib_list_pop(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
     let lst = match &args[0] {
         ValRef::List(lst) => lst,
-        _ => return Err(StackTrace::from_str("'list-pop' requires its argument to be a list"))
+        _ => {
+            return Err(StackTrace::from_str(
+                "'list-pop' requires its argument to be a list",
+            ))
+        }
     };
 
     let lst = if Rc::strong_count(&lst) == 1 {
@@ -687,7 +708,9 @@ fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 
 fn lib_dict_set(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
-        return Err(StackTrace::from_str("'dict-set' requires at least 1 argument"));
+        return Err(StackTrace::from_str(
+            "'dict-set' requires at least 1 argument",
+        ));
     }
 
     if args.len() % 2 != 1 {
@@ -698,7 +721,11 @@ fn lib_dict_set(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
     let dict = match &args[0] {
         ValRef::Dict(d) => d,
-        _ => return Err(StackTrace::from_str("'dict-set' requires its argument to be a dict"))
+        _ => {
+            return Err(StackTrace::from_str(
+                "'dict-set' requires its argument to be a dict",
+            ))
+        }
     };
 
     let dict = if Rc::strong_count(&dict) == 1 {
@@ -718,7 +745,11 @@ fn lib_dict_set(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 
             let keystr = match key {
                 ValRef::String(s) => s,
-                _ => return Err(StackTrace::from_str("'dict-set' requires keys to be strings")),
+                _ => {
+                    return Err(StackTrace::from_str(
+                        "'dict-set' requires keys to be strings",
+                    ))
+                }
             };
 
             dictmut.insert(keystr.as_ref().clone(), val.clone());
