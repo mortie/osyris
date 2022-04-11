@@ -1,4 +1,4 @@
-use osyris::{bstring::BString, eval, importlib, iolib, parse, stdlib};
+use osyris::{bstring::BString, dotlib, eval, importlib, iolib, parse, stdlib};
 use std::cell::RefCell;
 use std::env;
 use std::ffi::OsStr;
@@ -54,10 +54,13 @@ fn main() {
 
     let mut reader = parse::Reader::new(&string, path.clone());
 
-    let scope = Rc::new(RefCell::new(eval::Scope::new()));
-    stdlib::init(&scope);
-    iolib::init(&scope);
-    importlib::init_with_path(&scope, path);
+    let rootscope = Rc::new(RefCell::new(eval::Scope::new()));
+    stdlib::init(&rootscope);
+    iolib::init(&rootscope);
+    importlib::init_with_path(&rootscope, path);
+    dotlib::init(&rootscope);
+
+    let scope = Rc::new(RefCell::new(eval::Scope::new_with_parent(rootscope)));
 
     loop {
         let expr = match parse::parse(&mut reader) {
