@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::io;
 use std::rc::Rc;
 
-fn lib_print(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_print(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let stdout = match scope.borrow().lookup(&BString::from_str("stdout")) {
         Some(stdout) => stdout,
         None => {
@@ -48,7 +48,7 @@ fn lib_print(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
     Ok(ValRef::None)
 }
 
-fn lib_add(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     }
@@ -61,7 +61,7 @@ fn lib_add(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace
     Ok(ValRef::Number(num))
 }
 
-fn lib_sub(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     } else if args.len() == 1 {
@@ -76,7 +76,7 @@ fn lib_sub(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace
     Ok(ValRef::Number(num))
 }
 
-fn lib_mul(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     }
@@ -89,7 +89,7 @@ fn lib_mul(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace
     Ok(ValRef::Number(num))
 }
 
-fn lib_div(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
     } else if args.len() == 1 {
@@ -104,7 +104,7 @@ fn lib_div(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace
     Ok(ValRef::Number(num))
 }
 
-fn lib_equals(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() <= 1 {
         return Ok(ValRef::Bool(true));
     }
@@ -118,7 +118,7 @@ fn lib_equals(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
     Ok(ValRef::Bool(true))
 }
 
-fn lib_nequals(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     match lib_equals(args, scope) {
         Ok(ValRef::Bool(true)) => Ok(ValRef::Bool(false)),
         Ok(ValRef::Bool(false)) => Ok(ValRef::Bool(true)),
@@ -126,7 +126,7 @@ fn lib_nequals(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, St
     }
 }
 
-fn lib_lteq(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() > args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -136,7 +136,7 @@ fn lib_lteq(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     Ok(ValRef::Bool(true))
 }
 
-fn lib_lt(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() >= args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -146,7 +146,7 @@ fn lib_lt(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>
     Ok(ValRef::Bool(true))
 }
 
-fn lib_gteq(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() < args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -156,7 +156,7 @@ fn lib_gteq(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     Ok(ValRef::Bool(true))
 }
 
-fn lib_gt(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() <= args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -166,7 +166,7 @@ fn lib_gt(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>
     Ok(ValRef::Bool(true))
 }
 
-fn lib_or(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for idx in 0..args.len() - 1 {
         if args[idx].to_bool() {
             return Ok(args[idx].clone());
@@ -176,7 +176,7 @@ fn lib_or(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>
     Ok(args[args.len() - 1].clone())
 }
 
-fn lib_and(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for idx in 0..args.len() - 1 {
         if !args[idx].to_bool() {
             return Ok(args[idx].clone());
@@ -186,7 +186,7 @@ fn lib_and(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace
     Ok(args[args.len() - 1].clone())
 }
 
-fn lib_first(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_first(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for arg in args {
         match arg {
             ValRef::None => (),
@@ -197,7 +197,7 @@ fn lib_first(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
     Ok(ValRef::None)
 }
 
-fn lib_def(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_def(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 {
         return Err(StackTrace::from_str("'def' requires 2 arguments"));
     }
@@ -215,7 +215,7 @@ fn lib_def(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
     Ok(ValRef::None)
 }
 
-fn lib_set(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 {
         return Err(StackTrace::from_str("'set' requires 2 arguments"));
     }
@@ -239,7 +239,7 @@ fn lib_set(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
     }
 }
 
-fn lib_mutate(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 2 {
         return Err(StackTrace::from_str(
             "'mutate' requires at least 3 arguments",
@@ -247,15 +247,13 @@ fn lib_mutate(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     }
 
     let name = match &args[0] {
-        ValRef::String(s) => s,
+        ValRef::String(s) => s.clone(),
         _ => {
             return Err(StackTrace::from_str(
                 "'mutate' requires its first argument to be a string",
             ))
         }
     };
-
-    let func = &args[1];
 
     let (val, s) = match Scope::rlookup(scope, &name) {
         Some(val) => val,
@@ -269,18 +267,17 @@ fn lib_mutate(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 
     scope.borrow_mut().remove(name.as_ref());
 
-    let mut params = Vec::new();
-    params.push(val);
-    for idx in 2..args.len() {
-        params.push(args[idx].clone());
-    }
+    // Replace the name and the mutator function with the value to be
+    // passed as the first argument, so that we can re-use the args array
+    let func = args.remove(1);
+    args[0] = val;
 
-    let res = eval::call(func.clone(), params.as_slice(), scope)?;
+    let res = eval::call(func, args, scope)?;
     s.borrow_mut().insert(name.as_ref().clone(), res.clone());
     Ok(res)
 }
 
-fn lib_if(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 && args.len() != 3 {
         return Err(StackTrace::from_str("'if' requires 2 or 3 arguments"));
     }
@@ -297,7 +294,7 @@ fn lib_if(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
     expr.call_or_get(scope)
 }
 
-fn lib_match(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_match(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     for arg in args {
         let exprs = match arg {
             ValRef::Block(exprs) => exprs,
@@ -322,7 +319,7 @@ fn lib_match(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
     Ok(ValRef::None)
 }
 
-fn lib_while(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 1 && args.len() != 2 {
         return Err(StackTrace::from_str("'while' requires 1 or 2 arguments"));
     }
@@ -362,7 +359,7 @@ fn lib_while(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
     }
 }
 
-fn lib_do(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() > 0 {
         Ok(args[args.len() - 1].clone())
     } else {
@@ -370,7 +367,7 @@ fn lib_do(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>
     }
 }
 
-fn lib_bind(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Err(StackTrace::from_str("'bind' requires at least 1 argument"));
     }
@@ -412,7 +409,7 @@ fn lib_bind(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     }
 }
 
-fn lib_with(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut idx = 0;
     while idx < args.len() - 1 {
         let name = match &args[idx] {
@@ -439,7 +436,7 @@ fn lib_with(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     }
 }
 
-fn lib_read(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_read(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 1 && args.len() != 2 {
         return Err(StackTrace::from_str("'read' requires 1 or 2 arguments"));
     }
@@ -475,7 +472,7 @@ fn lib_read(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     }
 }
 
-fn lib_write(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_write(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 {
         return Err(StackTrace::from_str("'write' requires 2 arguments"));
     }
@@ -495,7 +492,7 @@ fn lib_write(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
     }
 }
 
-fn lib_seek(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 && args.len() != 3 {
         return Err(StackTrace::from_str("'seek' requires 2 or 3 arguments"));
     }
@@ -548,7 +545,7 @@ fn lib_seek(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     }
 }
 
-fn lib_error(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_error(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() == 0 {
         Err(StackTrace::from_val(ValRef::None))
     } else if args.len() == 1 {
@@ -573,18 +570,18 @@ fn lib_error(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
     }
 }
 
-fn lib_try(args: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_try(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 2 {
         return Err(StackTrace::from_str("'try' requires 2 or 3 arguments"));
     }
 
-    match eval::call(args[0].clone(), &[], scope) {
+    match eval::call(args[0].clone(), Vec::new(), scope) {
         Ok(val) => Ok(val),
-        Err(err) => eval::call(args[1].clone(), &[err.message], scope),
+        Err(err) => eval::call(args[1].clone(), vec![err.message], scope),
     }
 }
 
-fn lib_lazy(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 1 {
         return Err(StackTrace::from_str("'lazy' requires 1 argument"));
     }
@@ -592,7 +589,7 @@ fn lib_lazy(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
 }
 
-fn lib_lambda(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lambda(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut argnames: Vec<BString> = Vec::new();
     for idx in 0..args.len() {
         match &args[idx] {
@@ -620,11 +617,11 @@ fn lib_lambda(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
     Err(StackTrace::from_str("'lambda' requires a block argument"))
 }
 
-fn lib_list(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     Ok(ValRef::List(Rc::new(RefCell::new(args.to_vec()))))
 }
 
-fn lib_list_push(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_push(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Err(StackTrace::from_str(
             "'list-push' requires at least 1 argument",
@@ -656,7 +653,7 @@ fn lib_list_push(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
     Ok(ValRef::List(lst))
 }
 
-fn lib_list_pop(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_pop(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() != 1 {
         return Err(StackTrace::from_str("'list-pop' requires 1 argument"));
     }
@@ -680,7 +677,7 @@ fn lib_list_pop(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     Ok(ValRef::List(lst))
 }
 
-fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() % 2 != 0 {
         return Err(StackTrace::from_str(
             "'dict' requires an even number of arguments",
@@ -706,7 +703,7 @@ fn lib_dict(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     Ok(ValRef::Dict(Rc::new(RefCell::new(dict))))
 }
 
-fn lib_dict_set(args: &[ValRef], _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_dict_set(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Err(StackTrace::from_str(
             "'dict-set' requires at least 1 argument",

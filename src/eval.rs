@@ -9,7 +9,7 @@ use std::fmt;
 use std::io;
 use std::rc::Rc;
 
-pub type FuncVal = dyn Fn(&[ValRef], &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>;
+pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>;
 
 pub struct LambdaVal {
     pub args: Vec<BString>,
@@ -88,7 +88,7 @@ impl ValRef {
 
     pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
         match self {
-            ValRef::Block(..) => call(self.clone(), &[], scope),
+            ValRef::Block(..) => call(self.clone(), Vec::new(), scope),
             val => Ok(val.clone()),
         }
     }
@@ -309,7 +309,7 @@ impl Scope {
 
 pub fn call(
     func: ValRef,
-    args: &[ValRef],
+    mut args: Vec<ValRef>,
     scope: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
     match &func {
@@ -321,12 +321,12 @@ pub fn call(
             {
                 let mut ss = subscope.borrow_mut();
 
-                for idx in 0..l.args.len() {
+                for idx in (0..l.args.len()).rev() {
                     if idx >= args.len() {
                         break;
                     }
 
-                    ss.insert(l.args[idx].clone(), args[idx].clone());
+                    ss.insert(l.args[idx].clone(), args.pop().unwrap());
                 }
             }
 
@@ -338,12 +338,12 @@ pub fn call(
             {
                 let mut ss = subscope.borrow_mut();
 
-                for idx in 0..l.args.len() {
+                for idx in (0..l.args.len()).rev() {
                     if idx >= args.len() {
                         break;
                     }
 
-                    ss.insert(l.args[idx].clone(), args[idx].clone());
+                    ss.insert(l.args[idx].clone(), args.pop().unwrap());
                 }
 
                 ss.insert(BString::from_str("self"), selfval.as_ref().clone());
@@ -413,12 +413,12 @@ pub fn eval_call(
     }
 
     let func = eval(&exprs[0], scope)?;
-    call(func, args.as_slice(), scope)
+    call(func, args, scope)
 }
 
 fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     match lazy {
-        ValRef::Func(func) => func(&[], scope),
+        ValRef::Func(func) => func(Vec::new(), scope),
         ValRef::Lambda(l) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             {

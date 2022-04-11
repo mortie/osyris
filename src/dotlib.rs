@@ -133,7 +133,7 @@ where
     write!(w, "}}\n")
 }
 
-fn lib_print_scope_dot(_: &[ValRef], scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_print_scope_dot(_: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     match write_dot(&mut io::stdout(), scope) {
         Ok(()) => Ok(ValRef::None),
         Err(err) => Err(StackTrace::from_string(err.to_string())),

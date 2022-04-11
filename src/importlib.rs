@@ -131,7 +131,7 @@ fn import(importctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrac
 
 fn lib_import(
     importctx: &Rc<ImportCtx>,
-    args: &[ValRef],
+    args: Vec<ValRef>,
     _: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
     if args.len() != 1 {
