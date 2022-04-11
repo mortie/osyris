@@ -622,7 +622,7 @@ fn lib_list_push(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, St
     };
 
     let lst = if Rc::strong_count(&lst) == 1 {
-        (*lst).clone()
+        lst.clone()
     } else {
         Rc::new((**lst).clone())
     };
@@ -652,7 +652,7 @@ fn lib_list_pop(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     };
 
     let lst = if Rc::strong_count(&lst) == 1 {
-        (*lst).clone()
+        lst.clone()
     } else {
         Rc::new((**lst).clone())
     };
@@ -749,7 +749,7 @@ fn lib_dict_set(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     };
 
     let dict = if Rc::strong_count(&dict) == 1 {
-        (*dict).clone()
+        dict.clone()
     } else {
         Rc::new((**dict).clone())
     };
