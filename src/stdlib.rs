@@ -4,6 +4,7 @@ use super::eval::{self, PortVal, Scope, StackTrace, ValRef};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
+use std::mem;
 use std::rc::Rc;
 
 fn lib_print(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
@@ -660,6 +661,45 @@ fn lib_list_pop(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     Ok(ValRef::List(lst))
 }
 
+fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() != 2 {
+        return Err(StackTrace::from_str("'list-map' requires 2 arguments"));
+    }
+
+    let lstval = args[0].clone();
+    args[0] = ValRef::None;
+
+    let lst = match &lstval {
+        ValRef::List(lst) => lst,
+        _ => {
+            return Err(StackTrace::from_str(
+                "'list-map' requires its first argument to be a list",
+            ))
+        }
+    };
+
+    let func = args.pop().unwrap();
+
+    if Rc::strong_count(&lst) == 1 {
+        let mut lstmut = lst.borrow_mut();
+        for idx in 0..lstmut.len() {
+            let val = mem::replace(&mut lstmut[idx], ValRef::None);
+            lstmut[idx] = eval::call(func.clone(), vec![val], scope)?;
+        }
+
+        Ok(lstval.clone())
+    } else {
+        let lst = lst.borrow();
+        let mut lstmut: Vec<ValRef> = Vec::new();
+        lstmut.reserve(lst.len());
+        for idx in 0..lst.len() {
+            lstmut.push(eval::call(func.clone(), vec![lst[idx].clone()], scope)?);
+        }
+
+        Ok(ValRef::List(Rc::new(RefCell::new(lstmut))))
+    }
+}
+
 fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() % 2 != 0 {
         return Err(StackTrace::from_str(
@@ -795,6 +835,7 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("list", Rc::new(lib_list));
     s.put_func("list-push", Rc::new(lib_list_push));
     s.put_func("list-pop", Rc::new(lib_list_pop));
+    s.put_func("list-map", Rc::new(lib_list_map));
 
     s.put_func("dict", Rc::new(lib_dict));
     s.put_func("dict-set", Rc::new(lib_dict_set));
