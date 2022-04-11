@@ -230,8 +230,8 @@ impl fmt::Display for StackTrace {
 }
 
 pub struct Scope {
-    parent: Option<Rc<RefCell<Scope>>>,
-    map: HashMap<BString, ValRef>,
+    pub parent: Option<Rc<RefCell<Scope>>>,
+    pub map: HashMap<BString, ValRef>,
 }
 
 impl Scope {
@@ -328,11 +328,6 @@ pub fn call(
 
                     ss.insert(l.args[idx].clone(), args[idx].clone());
                 }
-
-                ss.insert(
-                    BString::from_str("args"),
-                    ValRef::List(Rc::new(RefCell::new(args.to_vec()))),
-                );
             }
 
             eval_multiple(&l.body[..], &subscope)
@@ -350,11 +345,6 @@ pub fn call(
 
                     ss.insert(l.args[idx].clone(), args[idx].clone());
                 }
-
-                ss.insert(
-                    BString::from_str("args"),
-                    ValRef::List(Rc::new(RefCell::new(args.to_vec()))),
-                );
 
                 ss.insert(BString::from_str("self"), selfval.as_ref().clone());
             }
