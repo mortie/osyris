@@ -71,13 +71,19 @@ where
                 Rc::strong_count(l)
             )?;
         }
-        ValRef::BoundLambda(l, selfval) => {
+        ValRef::Binding(b, func) => {
             name = format!("{}", parent);
-            let lname = format!("{}v{:p}", name, l.as_ref());
-            let selfname = write_val(w, selfval.as_ref(), format!("{:p}", selfval.as_ref()))?;
-            write!(w, "{} [label=\"bound lambda\" shape=box]\n", name)?;
-            write!(w, "{} -> {} [label=\"::lambda\"]\n", name, lname)?;
-            write!(w, "{} -> {} [label=\"::self\"]\n", name, selfname)?;
+            write!(w, "{} [label=\"binding\"]\n", name)?;
+
+            let mut idx = 0;
+            for (key, val) in b.as_ref() {
+                let n = write_val(w, &val, format!("{}v{}", name, idx))?;
+                write!(w, "{} -> {} [label={:?}]\n", name, n, key)?;
+                idx += 1;
+            }
+
+            let n = write_val(w, func.as_ref(), format!("{}f", name))?;
+            write!(w, "{} -> {} [label=\"::func\"]\n", name, n)?;
         }
         ValRef::Lazy(l) => {
             name = format!("v{:p}", l.as_ref());

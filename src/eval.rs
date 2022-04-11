@@ -44,7 +44,7 @@ pub enum ValRef {
     Dict(Rc<RefCell<HashMap<BString, ValRef>>>),
     Func(Rc<FuncVal>),
     Lambda(Rc<LambdaVal>),
-    BoundLambda(Rc<LambdaVal>, Box<ValRef>),
+    Binding(Rc<HashMap<BString, ValRef>>, Rc<ValRef>),
     Lazy(Rc<ValRef>),
     ProtectedLazy(Rc<ValRef>),
     Native(Rc<dyn Any>),
@@ -112,7 +112,7 @@ impl Clone for ValRef {
             Self::Dict(m) => Self::Dict(m.clone()),
             Self::Func(f) => Self::Func(f.clone()),
             Self::Lambda(l) => Self::Lambda(l.clone()),
-            Self::BoundLambda(l, s) => Self::BoundLambda(l.clone(), s.clone()),
+            Self::Binding(l, s) => Self::Binding(l.clone(), s.clone()),
             Self::Lazy(val) => Self::Lazy(val.clone()),
             Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
             Self::Native(n) => Self::Native(n.clone()),
@@ -155,8 +155,8 @@ impl fmt::Display for ValRef {
             }
             Self::Func(func) => write!(f, "(func {:p})", func.as_ref()),
             Self::Lambda(l) => write!(f, "(lambda {:?} {:?})", l.args, l.body),
-            Self::BoundLambda(l, s) => {
-                write!(f, "(bound (lambda {:?} {:?}), self={})", l.args, l.body, s)
+            Self::Binding(b, func) => {
+                write!(f, "(binding {:?} {:?})", *b, *func)
             }
             Self::Lazy(val) => write!(f, "(lazy {})", val),
             Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
@@ -332,24 +332,18 @@ pub fn call(
 
             eval_multiple(&l.body[..], &subscope)
         }
-        ValRef::BoundLambda(l, selfval) => {
+        ValRef::Binding(b, func) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
             {
                 let mut ss = subscope.borrow_mut();
 
-                for idx in (0..l.args.len()).rev() {
-                    if idx >= args.len() {
-                        break;
-                    }
-
-                    ss.insert(l.args[idx].clone(), args.pop().unwrap());
+                for (key, val) in b.as_ref() {
+                    ss.insert(key.clone(), val.clone());
                 }
-
-                ss.insert(BString::from_str("self"), selfval.as_ref().clone());
             }
 
-            eval_multiple(&l.body[..], &subscope)
+            call(func.as_ref().clone(), args, &subscope)
         }
         ValRef::List(list) => {
             if args.len() != 1 {
@@ -384,10 +378,7 @@ pub fn call(
             };
 
             match map.borrow().get(key.as_ref()) {
-                Some(val) => match val {
-                    ValRef::Lambda(l) => Ok(ValRef::BoundLambda(l.clone(), Box::new(func.clone()))),
-                    _ => Ok(val.clone()),
-                },
+                Some(val) => Ok(val.clone()),
                 None => Ok(ValRef::None),
             }
         }

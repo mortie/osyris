@@ -367,46 +367,29 @@ fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     }
 }
 
-fn lib_bind(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
-        return Err(StackTrace::from_str("'bind' requires at least 1 argument"));
+fn lib_bind(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() % 2 != 1 {
+        return Err(StackTrace::from_str(
+            "'bind' requires an odd number of arguments",
+        ));
     }
 
-    let vals = match &args[0] {
-        ValRef::List(l) => l.borrow(),
-        _ => {
-            return Err(StackTrace::from_str(
-                "'bind' expects first argument to be a list",
-            ))
-        }
-    };
+    let func = args.pop().unwrap();
 
-    let mut argidx = 0;
-    for idx in 1..args.len() - 1 {
-        let arg = &args[idx];
-        match arg {
-            ValRef::String(name) => {
-                if argidx >= vals.len() {
-                    return Err(StackTrace::from_str("'bind': Wrong argument count"));
-                }
+    let mut map: HashMap<BString, ValRef> = HashMap::new();
+    while args.len() > 0 {
+        let val = args.pop().unwrap();
+        let key = args.pop().unwrap();
 
-                scope
-                    .borrow_mut()
-                    .insert(name.as_ref().clone(), vals[argidx].clone());
-                argidx += 1;
-            }
-            _ => return Err(StackTrace::from_str("'bind' expects strings only")),
-        }
+        let keystr = match key {
+            ValRef::String(s) => s,
+            _ => return Err(StackTrace::from_str("'dict' requires keys to be strings")),
+        };
+
+        map.insert(keystr.as_ref().clone(), val);
     }
 
-    match &args[args.len() - 1] {
-        ValRef::Block(q) => eval::eval_call(q.as_ref(), scope),
-        _ => {
-            return Err(StackTrace::from_str(
-                "'bind' expects its last argument to be a blocks",
-            ))
-        }
-    }
+    Ok(ValRef::Binding(Rc::new(map), Rc::new(func)))
 }
 
 fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
