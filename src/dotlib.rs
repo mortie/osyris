@@ -1,4 +1,4 @@
-use super::eval::{Scope, ValRef, StackTrace};
+use super::eval::{Scope, StackTrace, ValRef};
 use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
@@ -23,7 +23,12 @@ where
         }
         ValRef::String(s) => {
             name = format!("v{:p}", s.as_ref());
-            write!(w, "{} [label=\"string rc={}\"]\n", name, Rc::strong_count(s))?;
+            write!(
+                w,
+                "{} [label=\"string rc={}\"]\n",
+                name,
+                Rc::strong_count(s)
+            )?;
             write!(w, "{}c [label={:?} shape=box]\n", name, s.as_ref())?;
             write!(w, "{} -> {}c [label=\"::content\"]\n", name, name)?;
         }
@@ -59,7 +64,12 @@ where
         }
         ValRef::Lambda(l) => {
             name = format!("v{:p}", l.as_ref());
-            write!(w, "{} [label=\"lambda rc={}\"]\n", name, Rc::strong_count(l))?;
+            write!(
+                w,
+                "{} [label=\"lambda rc={}\"]\n",
+                name,
+                Rc::strong_count(l)
+            )?;
         }
         ValRef::BoundLambda(l, selfval) => {
             name = format!("{}", parent);
@@ -81,7 +91,12 @@ where
         }
         ValRef::Native(n) => {
             name = format!("v{:p}", n.as_ref());
-            write!(w, "{} [label=\"native rc={}\"]\n", name, Rc::strong_count(n))?;
+            write!(
+                w,
+                "{} [label=\"native rc={}\"]\n",
+                name,
+                Rc::strong_count(n)
+            )?;
         }
         ValRef::Port(p) => {
             name = format!("v{:p}", p.as_ref());
@@ -102,7 +117,13 @@ where
     let mut idx = 0;
     for (key, val) in &s.map {
         let name = write_val(w, val, format!("s{:p}v{}", scope.as_ref(), idx))?;
-        write!(w, "s{:p} -> {} [label={:?} type=s]\n", scope.as_ref(), name, key)?;
+        write!(
+            w,
+            "s{:p} -> {} [label={:?} type=s]\n",
+            scope.as_ref(),
+            name,
+            key
+        )?;
         idx += 1;
     }
 
