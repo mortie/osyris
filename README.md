@@ -21,11 +21,13 @@ use std::rc::Rc;
 
 // The code we want to execute
 static CODE: &'static str = r#"
-(def 'fib {bind args 'num
-     {if (<= num 1)
-         1
-         {+ (fib (- num 1))
-            (fib (- num 2))}}})
+(def 'fib (lambda 'num {
+	(if [num <= 1]
+		{1}
+		{(+
+			(fib [num - 1])
+			(fib [num - 2]))})
+}))
 
 (print "fib of 20 is" (fib 20))
 "#;
