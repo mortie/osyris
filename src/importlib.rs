@@ -7,8 +7,15 @@ use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+pub enum ImportResult {
+    Err(StackTrace),
+    ValRef(ValRef),
+    Code(PathBuf, BString),
+}
+
 pub trait Import {
-    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, StackTrace>;
+    fn import(&self, ctx: &ImportCtx, name: &BString) -> ImportResult;
+    fn insert(&mut self, path: BString, val: ValRef);
 }
 
 pub struct ImportCtx {
@@ -50,9 +57,9 @@ impl DefaultImporter {
 }
 
 impl Import for DefaultImporter {
-    fn import(&mut self, ctx: &ImportCtx, name: &BString) -> Result<ValRef, StackTrace> {
+    fn import(&self, ctx: &ImportCtx, name: &BString) -> ImportResult {
         if let Some(val) = self.builtins.get(name) {
-            return Ok(val.clone());
+            return ImportResult::ValRef(val.clone());
         }
 
         let path: PathBuf;
@@ -64,69 +71,70 @@ impl Import for DefaultImporter {
 
         let abspath = match fs::canonicalize(path) {
             Ok(path) => path,
-            Err(err) => return Err(StackTrace::from_string(err.to_string())),
+            Err(err) => return ImportResult::Err(StackTrace::from_string(err.to_string())),
         };
 
-        let pathstr = BString::from_os_str(abspath.as_os_str());
-
-        let mut absdir = abspath.clone();
-        absdir.pop();
-
-        let dirstr = BString::from_os_str(absdir.as_os_str());
-
-        if let Some(val) = self.cache.get(&dirstr) {
-            return Ok(val.clone());
-        }
-
-        let code = match fs::read_to_string(&abspath) {
-            Ok(code) => code,
-            Err(err) => return Err(StackTrace::from_string(err.to_string())),
+        let code = match fs::read(&abspath) {
+            Ok(code) => BString::from_vec(code),
+            Err(err) => return ImportResult::Err(StackTrace::from_string(err.to_string())),
         };
 
-        let scope = Rc::new(RefCell::new(Scope::new_with_parent(ctx.root_scope.clone())));
+        ImportResult::Code(abspath, code)
+    }
 
-        let childctx = Rc::new(ImportCtx::new(
-            ctx.importer.clone(),
-            dirstr,
-            ctx.root_scope.clone(),
-        ));
-        init_with_importer(&scope, childctx);
-
-        let mut reader =
-            parse::Reader::new(&code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
-
-        let mut ret = ValRef::None;
-        loop {
-            let expr = match parse::parse(&mut reader) {
-                Ok(expr) => match expr {
-                    Some(expr) => expr,
-                    None => break,
-                },
-                Err(err) => {
-                    return Err(StackTrace::from_string(format!(
-                        "{}: Parse error: {}:{}: {}",
-                        name, err.line, err.col, err.msg
-                    )))
-                }
-            };
-
-            match eval(&expr, &scope) {
-                Ok(val) => ret = val,
-                Err(err) => return Err(err),
-            }
-        }
-
-        self.cache.insert(pathstr, ret.clone());
-
-        Ok(ret)
+    fn insert(&mut self, path: BString, val: ValRef) {
+        self.cache.insert(path, val);
     }
 }
 
-fn import(importctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
-    match importctx.importer.borrow_mut().import(importctx, name) {
-        Ok(val) => Ok(val.clone()),
-        Err(err) => Err(err),
+fn import(ctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
+    let (abspath, code) = match ctx.importer.borrow().import(ctx, name) {
+        ImportResult::Err(err) => return Err(err),
+        ImportResult::ValRef(val) => return Ok(val),
+        ImportResult::Code(path, code) => (path, code),
+    };
+
+    let mut dirpath = abspath.clone();
+    dirpath.pop();
+
+    let scope = Rc::new(RefCell::new(Scope::new_with_parent(ctx.root_scope.clone())));
+
+    let childctx = Rc::new(ImportCtx::new(
+        ctx.importer.clone(),
+        BString::from_os_str(dirpath.as_os_str()),
+        ctx.root_scope.clone(),
+    ));
+    init_with_importer(&scope, childctx);
+
+    let mut reader =
+        parse::Reader::new(&code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
+
+    let mut retval = ValRef::None;
+    loop {
+        let expr = match parse::parse(&mut reader) {
+            Ok(expr) => match expr {
+                Some(expr) => expr,
+                None => break,
+            },
+            Err(err) => {
+                return Err(StackTrace::from_string(format!(
+                    "{}: Parse error: {}:{}: {}",
+                    name, err.line, err.col, err.msg
+                )))
+            }
+        };
+
+        match eval(&expr, &scope) {
+            Ok(val) => retval = val,
+            Err(err) => return Err(err),
+        }
     }
+
+    ctx.importer
+        .borrow_mut()
+        .insert(BString::from_os_str(abspath.as_os_str()), retval.clone());
+
+    Ok(retval)
 }
 
 fn lib_import(
