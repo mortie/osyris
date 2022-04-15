@@ -9,6 +9,7 @@ use std::fmt;
 use std::io;
 use std::rc::Rc;
 
+pub type DictVal = HashMap<BString, ValRef>;
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>;
 
 pub struct LambdaVal {
@@ -41,7 +42,7 @@ pub enum ValRef {
     String(Rc<BString>),
     Block(Rc<Vec<ast::Expression>>),
     List(Rc<RefCell<Vec<ValRef>>>),
-    Dict(Rc<RefCell<HashMap<BString, ValRef>>>),
+    Dict(Rc<RefCell<DictVal>>),
     Func(Rc<FuncVal>),
     Lambda(Rc<LambdaVal>),
     Binding(Rc<HashMap<BString, ValRef>>, Rc<ValRef>),
@@ -359,7 +360,7 @@ pub fn call(
                 }
             };
 
-            if idx as usize > list.borrow().len() || idx < 0.0 {
+            if idx as usize >= list.borrow().len() || idx < 0.0 {
                 Ok(ValRef::None)
             } else {
                 Ok(list.borrow()[idx as usize].clone())
