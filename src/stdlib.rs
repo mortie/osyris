@@ -369,11 +369,11 @@ fn lib_read(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     let port = args.next_val()?.get_port()?;
 
     let res = if args.has_next() {
-        port.borrow_mut().read()
-    } else {
         let size = args.next_val()?.get_number()?;
         args.done()?;
         port.borrow_mut().read_chunk(size as usize)
+    } else {
+        port.borrow_mut().read()
     };
 
     match res {
