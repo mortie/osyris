@@ -21,19 +21,16 @@ pub trait Import {
 pub struct ImportCtx {
     pub importer: Rc<RefCell<dyn Import>>,
     pub cwd: BString,
-    pub root_scope: Rc<RefCell<Scope>>,
 }
 
 impl ImportCtx {
     fn new(
         importer: Rc<RefCell<dyn Import>>,
         cwd: BString,
-        root_scope: Rc<RefCell<Scope>>,
     ) -> Self {
         Self {
             importer,
             cwd,
-            root_scope,
         }
     }
 }
@@ -87,7 +84,7 @@ impl Import for DefaultImporter {
     }
 }
 
-fn import(ctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
+fn import(ctx: &Rc<ImportCtx>, name: &BString, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let (abspath, code) = match ctx.importer.borrow().import(ctx, name) {
         ImportResult::Err(err) => return Err(err),
         ImportResult::ValRef(val) => return Ok(val),
@@ -97,12 +94,11 @@ fn import(ctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
     let mut dirpath = abspath.clone();
     dirpath.pop();
 
-    let scope = Rc::new(RefCell::new(Scope::new_with_parent(ctx.root_scope.clone())));
+    let scope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
     let childctx = Rc::new(ImportCtx::new(
         ctx.importer.clone(),
         BString::from_os_str(dirpath.as_os_str()),
-        ctx.root_scope.clone(),
     ));
     init_with_importer(&scope, childctx);
 
@@ -141,14 +137,14 @@ fn import(ctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
 fn lib_import(
     importctx: &Rc<ImportCtx>,
     mut args: Vec<ValRef>,
-    _: &Rc<RefCell<Scope>>,
+    scope: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
     let path = args.next_val()?.get_string()?;
     args.done()?;
 
-    import(importctx, path.as_ref())
+    import(importctx, path.as_ref(), scope)
 }
 
 pub fn init_with_importer(scope: &Rc<RefCell<Scope>>, ctx: Rc<ImportCtx>) {
@@ -163,7 +159,6 @@ pub fn init_with_cwd(scope: &Rc<RefCell<Scope>>, cwd: BString) {
         Rc::new(ImportCtx::new(
             Rc::new(RefCell::new(DefaultImporter::new())),
             cwd,
-            scope.clone(),
         )),
     )
 }
