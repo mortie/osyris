@@ -1,21 +1,19 @@
-(test-case 'dict {(&&
-	({
-		(def 'd (dict 'a 10 'b 20))
-		(&&
-			[d.a == 10]
-			[d.b == 20]
-			[d.whatever == none])
-	})
+(test-case 'dict-basic {
+	(def 'd (dict 'a 10 'b 20))
 
-	({
-		(def 'd (dict 'x "hello" 'y "goodbye"))
-		(mutate 'd dict-set 'z "old" 'z "new")
-		(mutate 'd dict-set 'a 10 'b 20)
-		(&&
-			[d.x == "hello"]
-			[d.y == "goodbye"]
-			[d.z == "new"]
-			[d.a == 10]
-			[d.b == 20])
-	})
-)})
+	(assert [d.a == 10])
+	(assert [d.b == 20])
+	(assert [d.whatever == none])
+})
+
+(test-case 'dict-mutate {
+	(def 'd (dict 'x "hello" 'y "goodbye"))
+	(mutate 'd dict-set 'z "old" 'z "new")
+	(mutate 'd dict-set 'a 10 'b 20)
+
+	(assert [d.x == "hello"])
+	(assert [d.y == "goodbye"])
+	(assert [d.z == "new"])
+	(assert [d.a == 10])
+	(assert [d.b == 20])
+})

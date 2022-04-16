@@ -1,39 +1,41 @@
-(test-case 'list {(&&
-	({
-		(def 'l (list 1 2 3))
-		(&&
-			[l.0 == 1]
-			[l.1 == 2]
-			[l.2 == 3]
-			[l.3 == none])
-	})
+(test-case 'list-basic {
+	(def 'l (list 1 2 3))
 
-	({
-		(def 'l (list 10 20 30 40))
-		(&&
-			[l.0 == 10]
-			[l.1 == 20]
-			[l.2 == 30]
-			[l.3 == 40])
-	})
+	(assert [l.0 == 1])
+	(assert [l.1 == 2])
+	(assert [l.2 == 3])
+	(assert [l.3 == none])
+})
 
-	({
-		(def 'l (list 5 10 15))
-		(mutate 'l list-push 55)
-		(&&
-			[l.0 == 5]
-			[l.1 == 10]
-			[l.2 == 15]
-			[l.3 == 55])
-	})
+(test-case 'list-mutate-push {
+	(def 'l (list 5 10 15))
+	(mutate 'l list-push 55)
 
-	({
-		(def 'l (list 5 10 15))
-		(mutate 'l list-pop)
-		(mutate 'l list-push 19)
-		(&&
-			[l.0 == 5]
-			[l.1 == 10]
-			[l.2 == 19])
-	})
-)})
+	(assert [l.0 == 5])
+	(assert [l.1 == 10])
+	(assert [l.2 == 15])
+	(assert [l.3 == 55])
+	(assert [l.4 == none])
+})
+
+(test-case 'list-mutate-pop-push {
+	(def 'l (list 5 10 15))
+	(mutate 'l list-pop)
+	(mutate 'l list-push 19)
+
+	(assert [l.0 == 5])
+	(assert [l.1 == 10])
+	(assert [l.2 == 19])
+	(assert [l.3 == none])
+})
+
+(test-case 'list-map {
+	(def 'l (list 1 2 3 4))
+	(mutate 'l list-map (lambda 'x {[x * 2]}))
+
+	(assert [l.0 == 2])
+	(assert [l.1 == 4])
+	(assert [l.2 == 6])
+	(assert [l.3 == 8])
+	(assert [l.4 == none])
+})
