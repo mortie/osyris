@@ -55,6 +55,14 @@ fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
     Ok(ValRef::None)
 }
 
+fn lib_not(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let arg = args.next_val()?;
+    args.done()?;
+    Ok(ValRef::Bool(!arg.to_bool()))
+}
+
 fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
@@ -620,6 +628,8 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put("true", ValRef::Bool(true));
 
     s.put_func("print", Rc::new(lib_print));
+
+    s.put_func("not", Rc::new(lib_not));
     s.put_func("+", Rc::new(lib_add));
     s.put_func("-", Rc::new(lib_sub));
     s.put_func("*", Rc::new(lib_mul));
