@@ -124,6 +124,7 @@ fn import(ctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
             }
         };
 
+        drop(retval);
         match eval(&expr, &scope) {
             Ok(val) => retval = val,
             Err(err) => return Err(err),

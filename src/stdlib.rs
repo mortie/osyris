@@ -250,7 +250,7 @@ fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRe
         }
     };
 
-    scope.borrow_mut().remove(name.as_ref());
+    s.borrow_mut().remove(name.as_ref());
 
     // Replace the name and the mutator function with the value to be
     // passed as the first argument, so that we can re-use the args array
@@ -311,7 +311,10 @@ fn lib_while(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
         }
 
         match &body {
-            Some(body) => retval = eval::call(body, vec![], scope)?,
+            Some(body) => {
+                drop(retval);
+                retval = eval::call(body, vec![], scope)?;
+            }
             _ => (),
         };
     }

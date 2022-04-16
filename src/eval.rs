@@ -529,6 +529,7 @@ pub fn eval_multiple(
 ) -> Result<ValRef, StackTrace> {
     let mut retval = ValRef::None;
     for expr in exprs {
+        drop(retval);
         retval = eval(expr, scope)?;
     }
 
