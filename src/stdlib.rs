@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{self, PortVal, Scope, StackTrace, ValRef, FuncArgs};
+use super::eval::{self, FuncArgs, PortVal, Scope, StackTrace, ValRef};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -226,7 +226,10 @@ fn lib_set(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
         let val = args.next_val()?;
 
         if !scopemut.replace(key.as_ref().clone(), val) {
-            return Err(StackTrace::from_string(format!("Variable '{}' doesn't exist", key)));
+            return Err(StackTrace::from_string(format!(
+                "Variable '{}' doesn't exist",
+                key
+            )));
         }
     }
 
@@ -286,7 +289,7 @@ fn lib_match(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
         let block = args.next_val()?.get_block()?;
 
         if block.len() < 1 {
-            return Err(StackTrace::from_str("Blocks must have at least 1 element"))
+            return Err(StackTrace::from_str("Blocks must have at least 1 element"));
         }
 
         if eval::eval(&block[0], scope)?.to_bool() {

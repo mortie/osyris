@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{eval, Scope, StackTrace, ValRef, FuncArgs};
+use super::eval::{eval, FuncArgs, Scope, StackTrace, ValRef};
 use super::parse;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -24,14 +24,8 @@ pub struct ImportCtx {
 }
 
 impl ImportCtx {
-    fn new(
-        importer: Rc<RefCell<dyn Import>>,
-        cwd: BString,
-    ) -> Self {
-        Self {
-            importer,
-            cwd,
-        }
+    fn new(importer: Rc<RefCell<dyn Import>>, cwd: BString) -> Self {
+        Self { importer, cwd }
     }
 }
 
@@ -84,7 +78,11 @@ impl Import for DefaultImporter {
     }
 }
 
-fn import(ctx: &Rc<ImportCtx>, name: &BString, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn import(
+    ctx: &Rc<ImportCtx>,
+    name: &BString,
+    scope: &Rc<RefCell<Scope>>,
+) -> Result<ValRef, StackTrace> {
     let (abspath, code) = match ctx.importer.borrow().import(ctx, name) {
         ImportResult::Err(err) => return Err(err),
         ImportResult::ValRef(val) => return Ok(val),
