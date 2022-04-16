@@ -1,15 +1,25 @@
 use super::bstring::BString;
-use super::eval::{self, PortVal, Scope, StackTrace, ValRef};
+use super::eval::{self, PortVal, Scope, StackTrace, ValRef, FuncArgs};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use std::mem;
 use std::rc::Rc;
+use std::vec;
 
-fn lib_print(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
     let stdout = match scope.borrow().lookup(&BString::from_str("stdout")) {
-        Some(stdout) => stdout,
+        Some(stdout) => match stdout {
+            ValRef::Port(port) => port,
+            _ => {
+                return Err(StackTrace::from_str(
+                    "'print' expects 'stdout' to be a port",
+                ))
+            }
+        },
         None => {
             return Err(StackTrace::from_str(
                 "'print' expects a variable 'stdout' to be defined",
@@ -17,30 +27,26 @@ fn lib_print(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, St
         }
     };
 
-    let stdout = match stdout {
-        ValRef::Port(port) => port,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'print' expects 'stdout' to be a port",
-            ))
-        }
-    };
     let mut out = stdout.borrow_mut();
 
     let space = ValRef::String(Rc::new(BString::from_str(" ")));
-    for idx in 0..args.len() {
-        if idx != 0 {
+    let mut first = true;
+    while let Some(arg) = args.next() {
+        if !first {
             match out.write(&space) {
                 Ok(_) => (),
                 Err(err) => return Err(StackTrace::from_string(err)),
             };
         }
 
-        match out.write(&args[idx]) {
+        match out.write(&arg) {
             Ok(_) => (),
             Err(err) => return Err(StackTrace::from_string(err)),
         };
+
+        first = false;
     }
+
     match out.write(&ValRef::String(Rc::new(BString::from_str("\n")))) {
         Ok(_) => (),
         Err(err) => return Err(StackTrace::from_string(err)),
@@ -198,65 +204,43 @@ fn lib_first(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
     Ok(ValRef::None)
 }
 
-fn lib_def(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 2 {
-        return Err(StackTrace::from_str("'def' requires 2 arguments"));
+fn lib_def(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let mut scopemut = scope.borrow_mut();
+    while args.has_next() {
+        let key = args.next_val()?.get_string()?;
+        let val = args.next_val()?;
+        scopemut.insert(key.as_ref().clone(), val);
     }
 
-    let name = match &args[0] {
-        ValRef::String(s) => s.as_ref(),
-        _ => {
-            return Err(StackTrace::from_str(
-                "'def' requires the first argument to be a string",
-            ))
-        }
-    };
-
-    scope.borrow_mut().insert(name.clone(), args[1].clone());
     Ok(ValRef::None)
 }
 
-fn lib_set(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 2 {
-        return Err(StackTrace::from_str("'set' requires 2 arguments"));
-    }
+fn lib_set(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let name = match &args[0] {
-        ValRef::String(s) => s.as_ref(),
-        _ => {
-            return Err(StackTrace::from_str(
-                "'set' requires the first argument to be a string",
-            ))
+    let mut scopemut = scope.borrow_mut();
+    while args.has_next() {
+        let key = args.next_val()?.get_string()?;
+        let val = args.next_val()?;
+
+        if !scopemut.replace(key.as_ref().clone(), val) {
+            return Err(StackTrace::from_string(format!("Variable '{}' doesn't exist", key)));
         }
-    };
-
-    if scope.borrow_mut().replace(name.clone(), args[1].clone()) {
-        Ok(ValRef::None)
-    } else {
-        Err(StackTrace::from_string(format!(
-            "Variable '{}' doesn't exist",
-            name
-        )))
     }
+
+    Ok(ValRef::None)
 }
 
 fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 2 {
-        return Err(StackTrace::from_str(
-            "'mutate' requires at least 3 arguments",
-        ));
+        return Err(StackTrace::from_str("Not enough arguments"));
     }
 
-    let name = match &args[0] {
-        ValRef::String(s) => s.clone(),
-        _ => {
-            return Err(StackTrace::from_str(
-                "'mutate' requires its first argument to be a string",
-            ))
-        }
-    };
+    let name = args[0].clone().get_string()?;
 
-    let (val, s) = match Scope::rlookup(scope, &name) {
+    let (val, s) = match Scope::rlookup(scope, name.as_ref()) {
         Some(val) => val,
         None => {
             return Err(StackTrace::from_string(format!(
@@ -273,245 +257,146 @@ fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRe
     let func = args.remove(1);
     args[0] = val;
 
-    let res = eval::call(func, args, scope)?;
+    let res = eval::call(&func, args, scope)?;
     s.borrow_mut().insert(name.as_ref().clone(), res.clone());
     Ok(res)
 }
 
-fn lib_if(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 2 && args.len() != 3 {
-        return Err(StackTrace::from_str("'if' requires 2 or 3 arguments"));
-    }
+fn lib_if(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let expr;
-    if args[0].to_bool() {
-        expr = &args[1];
-    } else if args.len() == 3 {
-        expr = &args[2];
+    let cond = args.next_val()?.to_bool();
+    let if_body = args.next_val()?;
+    let else_body = args.next();
+    args.done()?;
+
+    if cond {
+        eval::call(&if_body, vec![], scope)
+    } else if let Some(else_body) = else_body {
+        eval::call(&else_body, vec![], scope)
     } else {
-        return Ok(ValRef::None);
+        Ok(ValRef::None)
     }
-
-    expr.call_or_get(scope)
 }
 
-fn lib_match(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    for arg in args {
-        let exprs = match arg {
-            ValRef::Block(exprs) => exprs,
-            _ => {
-                return Err(StackTrace::from_str(
-                    "'match' requires all arguments to be blocks",
-                ))
-            }
-        };
+fn lib_match(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-        if exprs.len() < 1 {
-            return Err(StackTrace::from_str(
-                "'match' requires all arguments to have at least 1 element",
-            ));
+    while args.has_next() {
+        let block = args.next_val()?.get_block()?;
+
+        if block.len() < 1 {
+            return Err(StackTrace::from_str("Blocks must have at least 1 element"))
         }
 
-        if eval::eval(&exprs[0], scope)?.to_bool() {
-            return eval::eval_multiple(&exprs[1..], scope);
+        if eval::eval(&block[0], scope)?.to_bool() {
+            return eval::eval_multiple(&block[1..], scope);
         }
     }
 
     Ok(ValRef::None)
 }
 
-fn lib_while(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 1 && args.len() != 2 {
-        return Err(StackTrace::from_str("'while' requires 1 or 2 arguments"));
-    }
+fn lib_while(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let cond = match &args[0] {
-        ValRef::Block(func) => func,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'while' expects the firt argument to be a function",
-            ))
-        }
-    };
-
-    let body = if args.len() >= 1 {
-        match &args[1] {
-            ValRef::Block(func) => Some(func),
-            _ => {
-                return Err(StackTrace::from_str(
-                    "'while' expects the second argument to be a function",
-                ))
-            }
-        }
-    } else {
-        None
-    };
+    let cond = args.next_val()?;
+    let body = args.next();
+    args.done()?;
 
     let mut retval: ValRef = ValRef::None;
     loop {
-        if !eval::eval_call(cond.as_ref(), scope)?.to_bool() {
+        if !eval::call(&cond, vec![], scope)?.to_bool() {
             return Ok(retval);
         }
 
-        match body {
-            Some(body) => retval = eval::eval_call(body, scope)?,
+        match &body {
+            Some(body) => retval = eval::call(body, vec![], scope)?,
             _ => (),
         };
     }
 }
 
-fn lib_do(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() > 0 {
-        Ok(args[args.len() - 1].clone())
+fn lib_do(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if let Some(val) = args.pop() {
+        Ok(val)
     } else {
         Ok(ValRef::None)
     }
 }
 
 fn lib_bind(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() % 2 != 1 {
-        return Err(StackTrace::from_str(
-            "'bind' requires an odd number of arguments",
-        ));
-    }
+    let mut args = args.drain(0..);
 
-    let func = args.pop().unwrap();
+    let func = args.next_val()?;
 
     let mut map: HashMap<BString, ValRef> = HashMap::new();
-    while args.len() > 0 {
-        let val = args.pop().unwrap();
-        let key = args.pop().unwrap();
-
-        let keystr = match key {
-            ValRef::String(s) => s,
-            _ => return Err(StackTrace::from_str("'dict' requires keys to be strings")),
-        };
-
-        map.insert(keystr.as_ref().clone(), val);
+    while args.has_next() {
+        let key = args.next_val()?.get_string()?;
+        let val = args.next_val()?;
+        map.insert(key.as_ref().clone(), val);
     }
 
     Ok(ValRef::Binding(Rc::new(map), Rc::new(func)))
 }
 
-fn lib_with(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    let mut idx = 0;
-    while idx < args.len() - 1 {
-        let name = match &args[idx] {
-            ValRef::String(s) => s,
-            _ => return Err(StackTrace::from_str("'with' requires names to be string")),
-        };
+fn lib_with(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-        idx += 1;
-        let val = &args[idx];
-        idx += 1;
+    let mut s = Scope::new_with_parent(scope.clone());
+    while args.len() > 1 {
+        let key = args.next_val()?.get_string()?;
+        let val = args.next_val()?;
 
-        scope
-            .borrow_mut()
-            .insert(name.as_ref().clone(), val.clone());
+        s.insert(key.as_ref().clone(), val);
     }
 
-    match &args[args.len() - 1] {
-        ValRef::Block(q) => eval::eval_call(q.as_ref(), scope),
-        _ => {
-            return Err(StackTrace::from_str(
-                "'bind' expects its last argument to be a block",
-            ))
-        }
-    }
+    let func = args.next_val()?;
+    args.done()?;
+
+    eval::call(&func, vec![], &Rc::new(RefCell::new(s)))
 }
 
-fn lib_read(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 1 && args.len() != 2 {
-        return Err(StackTrace::from_str("'read' requires 1 or 2 arguments"));
-    }
+fn lib_read(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let port = match &args[0] {
-        ValRef::Port(port) => port,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'read' requires the first argument to be a port",
-            ))
-        }
-    };
+    let port = args.next_val()?.get_port()?;
 
-    if args.len() == 1 {
-        match port.borrow_mut().read() {
-            Ok(val) => Ok(val),
-            Err(err) => Err(StackTrace::from_string(err)),
-        }
+    let res = if args.has_next() {
+        port.borrow_mut().read()
     } else {
-        let size = match args[1] {
-            ValRef::Number(num) => num,
-            _ => {
-                return Err(StackTrace::from_str(
-                    "'read' requires the second argument to be a number",
-                ))
-            }
-        };
+        let size = args.next_val()?.get_number()?;
+        args.done()?;
+        port.borrow_mut().read_chunk(size as usize)
+    };
 
-        match port.borrow_mut().read_chunk(size as usize) {
-            Ok(val) => Ok(val),
-            Err(err) => Err(StackTrace::from_string(err)),
-        }
+    match res {
+        Ok(val) => Ok(val),
+        Err(err) => Err(StackTrace::from_string(err)),
     }
 }
 
-fn lib_write(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 2 {
-        return Err(StackTrace::from_str("'write' requires 2 arguments"));
-    }
+fn lib_write(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let port = match &args[0] {
-        ValRef::Port(port) => port,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'write' requires the first argument to be a port",
-            ))
-        }
-    };
+    let port = args.next_val()?.get_port()?;
+    let val = args.next_val()?;
+    args.done()?;
 
-    match port.borrow_mut().write(&args[1]) {
+    let res = port.borrow_mut().write(&val);
+    match res {
         Ok(_) => Ok(ValRef::None),
         Err(err) => Err(StackTrace::from_string(err)),
     }
 }
 
-fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 2 && args.len() != 3 {
-        return Err(StackTrace::from_str("'seek' requires 2 or 3 arguments"));
-    }
+fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let port = match &args[0] {
-        ValRef::Port(port) => port,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'seek' requires the first argument to be a port",
-            ))
-        }
-    };
-
-    let num = match &args[1] {
-        ValRef::Number(num) => *num,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'seek' requires the second argument to be a number",
-            ))
-        }
-    };
-
-    let pos = if args.len() == 2 {
-        io::SeekFrom::Start(num as u64)
-    } else {
-        let name = match &args[2] {
-            ValRef::String(s) => s,
-            _ => {
-                return Err(StackTrace::from_str(
-                    "'seek' requires the third argument to be a string",
-                ))
-            }
-        };
-
-        match name.as_bytes() {
+    let port = args.next_val()?.get_port()?;
+    let num = args.next_val()?.get_number()?;
+    let pos = if args.has_next() {
+        match args.next_val()?.get_string()?.as_bytes() {
             b"set" => io::SeekFrom::Start(num as u64),
             b"end" => io::SeekFrom::End(num as i64),
             b"current" => io::SeekFrom::Current(num as i64),
@@ -521,11 +406,16 @@ fn lib_seek(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
                 ))
             }
         }
+    } else {
+        io::SeekFrom::Start(num as u64)
     };
 
-    match port.borrow_mut().seek(pos) {
+    args.done()?;
+
+    let res = port.borrow_mut().seek(pos);
+    match res {
         Ok(_) => Ok(ValRef::None),
-        Err(err) => Err(StackTrace::from_string(err)),
+        Err(err) => Err(StackTrace::from_string(err.to_string())),
     }
 }
 
@@ -554,23 +444,26 @@ fn lib_error(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
     }
 }
 
-fn lib_try(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 2 {
-        return Err(StackTrace::from_str("'try' requires 2 or 3 arguments"));
-    }
+fn lib_try(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    match eval::call(args[0].clone(), Vec::new(), scope) {
+    let try_body = args.next_val()?;
+    let catch_body = args.next_val()?;
+    args.done()?;
+
+    match eval::call(&try_body, Vec::new(), scope) {
         Ok(val) => Ok(val),
-        Err(err) => eval::call(args[1].clone(), vec![err.message], scope),
+        Err(err) => eval::call(&catch_body, vec![err.message], scope),
     }
 }
 
-fn lib_lazy(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 1 {
-        return Err(StackTrace::from_str("'lazy' requires 1 argument"));
-    }
+fn lib_lazy(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    Ok(ValRef::ProtectedLazy(Rc::new(args[0].clone())))
+    let val = args.next_val()?;
+    args.done()?;
+
+    Ok(ValRef::ProtectedLazy(Rc::new(val)))
 }
 
 fn lib_lambda(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
@@ -602,59 +495,39 @@ fn lib_lambda(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 }
 
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    Ok(ValRef::List(Rc::new(RefCell::new(args.to_vec()))))
+    Ok(ValRef::List(Rc::new(RefCell::new(args))))
 }
 
-fn lib_list_push(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
-        return Err(StackTrace::from_str(
-            "'list-push' requires at least 1 argument",
-        ));
-    }
+fn lib_list_push(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let lst = match &args[0] {
-        ValRef::List(lst) => lst,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'list-push' requires its first argument to be a list",
-            ))
-        }
-    };
+    let lst = args.next_val()?.get_list()?;
 
     let lst = if Rc::strong_count(&lst) == 1 {
-        lst.clone()
+        lst
     } else {
-        Rc::new((**lst).clone())
+        Rc::new((*lst).clone())
     };
 
-    {
-        let mut lstmut = lst.borrow_mut();
-        for idx in 1..args.len() {
-            lstmut.push(args[idx].clone())
-        }
+    let mut lstmut = lst.borrow_mut();
+    while let Some(val) = args.next() {
+        lstmut.push(val);
     }
 
+    drop(lstmut);
     Ok(ValRef::List(lst))
 }
 
-fn lib_list_pop(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 1 {
-        return Err(StackTrace::from_str("'list-pop' requires 1 argument"));
-    }
+fn lib_list_pop(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-    let lst = match &args[0] {
-        ValRef::List(lst) => lst,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'list-pop' requires its argument to be a list",
-            ))
-        }
-    };
+    let lst = args.next_val()?.get_list()?;
+    args.done()?;
 
     let lst = if Rc::strong_count(&lst) == 1 {
-        lst.clone()
+        lst
     } else {
-        Rc::new((**lst).clone())
+        Rc::new((*lst).clone())
     };
 
     lst.borrow_mut().pop();
@@ -662,120 +535,65 @@ fn lib_list_pop(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 }
 
 fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() != 2 {
-        return Err(StackTrace::from_str("'list-map' requires 2 arguments"));
-    }
+    let mut args = args.drain(0..);
 
-    let lstval = args[0].clone();
-    args[0] = ValRef::None;
-
-    let lst = match &lstval {
-        ValRef::List(lst) => lst,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'list-map' requires its first argument to be a list",
-            ))
-        }
-    };
-
-    let func = args.pop().unwrap();
+    let lst = args.next_val()?.get_list()?;
+    let func = args.next_val()?;
+    args.done()?;
 
     if Rc::strong_count(&lst) == 1 {
         let mut lstmut = lst.borrow_mut();
         for idx in 0..lstmut.len() {
             let val = mem::replace(&mut lstmut[idx], ValRef::None);
-            lstmut[idx] = eval::call(func.clone(), vec![val], scope)?;
+            lstmut[idx] = eval::call(&func, vec![val], scope)?;
         }
 
-        Ok(lstval.clone())
+        drop(lstmut);
+        Ok(ValRef::List(lst))
     } else {
         let lst = lst.borrow();
         let mut lstmut: Vec<ValRef> = Vec::new();
         lstmut.reserve(lst.len());
         for idx in 0..lst.len() {
-            lstmut.push(eval::call(func.clone(), vec![lst[idx].clone()], scope)?);
+            lstmut.push(eval::call(&func, vec![lst[idx].clone()], scope)?);
         }
 
         Ok(ValRef::List(Rc::new(RefCell::new(lstmut))))
     }
 }
 
-fn lib_dict(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() % 2 != 0 {
-        return Err(StackTrace::from_str(
-            "'dict' requires an even number of arguments",
-        ));
-    }
+fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
     let mut dict: HashMap<BString, ValRef> = HashMap::new();
-    let mut idx = 0;
-    while idx < args.len() {
-        let key = &args[idx];
-        idx += 1;
-        let val = &args[idx];
-        idx += 1;
-
-        let keystr = match key {
-            ValRef::String(s) => s,
-            _ => return Err(StackTrace::from_str("'dict' requires keys to be strings")),
-        };
-
-        dict.insert(keystr.as_ref().clone(), val.clone());
+    while args.has_next() {
+        let key = args.next_val()?.get_string()?;
+        let val = args.next_val()?;
+        dict.insert(key.as_ref().clone(), val.clone());
     }
 
     Ok(ValRef::Dict(Rc::new(RefCell::new(dict))))
 }
 
-fn lib_dict_set(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
-        return Err(StackTrace::from_str(
-            "'dict-set' requires at least 1 argument",
-        ));
-    }
-
-    if args.len() % 2 != 1 {
-        return Err(StackTrace::from_str(
-            "'dict-set' requires an odd number of arguments",
-        ));
-    }
-
-    let dict = match &args[0] {
-        ValRef::Dict(d) => d,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'dict-set' requires its argument to be a dict",
-            ))
-        }
-    };
+fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+    let dict = args.next_val()?.get_dict()?;
 
     let dict = if Rc::strong_count(&dict) == 1 {
-        dict.clone()
+        dict
     } else {
-        Rc::new((**dict).clone())
+        Rc::new((*dict).clone())
     };
 
-    {
-        let mut dictmut = dict.borrow_mut();
-        let mut idx = 1;
-        while idx < args.len() {
-            let key = &args[idx];
-            idx += 1;
-            let val = &args[idx];
-            idx += 1;
+    let mut dictmut = dict.borrow_mut();
+    while args.has_next() {
+        let key = args.next_val()?.get_string()?;
+        let val = args.next_val()?;
 
-            let keystr = match key {
-                ValRef::String(s) => s,
-                _ => {
-                    return Err(StackTrace::from_str(
-                        "'dict-set' requires keys to be strings",
-                    ))
-                }
-            };
-
-            dictmut.insert(keystr.as_ref().clone(), val.clone());
-        }
+        dictmut.insert(key.as_ref().clone(), val.clone());
     }
 
+    drop(dictmut);
     Ok(ValRef::Dict(dict))
 }
 

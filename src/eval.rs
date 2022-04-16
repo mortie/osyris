@@ -8,6 +8,34 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::rc::Rc;
+use std::vec;
+
+pub trait FuncArgs {
+    fn next_val(&mut self) -> Result<ValRef, StackTrace>;
+    fn has_next(&self) -> bool;
+    fn done(&self) -> Result<(), StackTrace>;
+}
+
+impl FuncArgs for vec::Drain<'_, ValRef> {
+    fn next_val(&mut self) -> Result<ValRef, StackTrace> {
+        match self.next() {
+            Some(val) => Ok(val),
+            None => Err(StackTrace::from_str("Not enough parameters")),
+        }
+    }
+
+    fn has_next(&self) -> bool {
+        self.len() > 0
+    }
+
+    fn done(&self) -> Result<(), StackTrace> {
+        if self.has_next() {
+            Err(StackTrace::from_str("Too many arguments"))
+        } else {
+            Ok(())
+        }
+    }
+}
 
 pub type DictVal = HashMap<BString, ValRef>;
 pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>;
@@ -87,10 +115,45 @@ impl ValRef {
         }
     }
 
-    pub fn call_or_get(&self, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    pub fn get_number(self) -> Result<f64, StackTrace> {
         match self {
-            ValRef::Block(..) => call(self.clone(), Vec::new(), scope),
-            val => Ok(val.clone()),
+            ValRef::Number(n) => Ok(n),
+            _ => Err(StackTrace::from_str("Expected number")),
+        }
+    }
+
+    pub fn get_string(self) -> Result<Rc<BString>, StackTrace> {
+        match self {
+            ValRef::String(s) => Ok(s),
+            _ => Err(StackTrace::from_str("Expected string")),
+        }
+    }
+
+    pub fn get_block(self) -> Result<Rc<Vec<ast::Expression>>, StackTrace> {
+        match self {
+            ValRef::Block(b) => Ok(b),
+            _ => Err(StackTrace::from_str("Expected block")),
+        }
+    }
+
+    pub fn get_list(self) -> Result<Rc<RefCell<Vec<ValRef>>>, StackTrace> {
+        match self {
+            ValRef::List(l) => Ok(l),
+            _ => Err(StackTrace::from_str("Expected list")),
+        }
+    }
+
+    pub fn get_dict(self) -> Result<Rc<RefCell<DictVal>>, StackTrace> {
+        match self {
+            ValRef::Dict(d) => Ok(d),
+            _ => Err(StackTrace::from_str("Expected dict")),
+        }
+    }
+
+    pub fn get_port(self) -> Result<Rc<RefCell<dyn PortVal>>, StackTrace> {
+        match self {
+            ValRef::Port(p) => Ok(p),
+            _ => Err(StackTrace::from_str("Expected port")),
         }
     }
 }
@@ -309,7 +372,7 @@ impl Scope {
 }
 
 pub fn call(
-    func: ValRef,
+    func: &ValRef,
     mut args: Vec<ValRef>,
     scope: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
@@ -344,7 +407,7 @@ pub fn call(
                 }
             }
 
-            call(func.as_ref().clone(), args, &subscope)
+            call(func.as_ref(), args, &subscope)
         }
         ValRef::List(list) => {
             if args.len() != 1 {
@@ -405,7 +468,7 @@ pub fn eval_call(
     }
 
     let func = eval(&exprs[0], scope)?;
-    call(func, args, scope)
+    call(&func, args, scope)
 }
 
 fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {

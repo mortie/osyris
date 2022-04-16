@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{eval, Scope, StackTrace, ValRef};
+use super::eval::{eval, Scope, StackTrace, ValRef, FuncArgs};
 use super::parse;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -139,23 +139,15 @@ fn import(ctx: &Rc<ImportCtx>, name: &BString) -> Result<ValRef, StackTrace> {
 
 fn lib_import(
     importctx: &Rc<ImportCtx>,
-    args: Vec<ValRef>,
+    mut args: Vec<ValRef>,
     _: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
-    if args.len() != 1 {
-        return Err(StackTrace::from_str("'import' requires 1 argument".into()));
-    }
+    let mut args = args.drain(0..);
 
-    let path = match &args[0] {
-        ValRef::String(s) => s,
-        _ => {
-            return Err(StackTrace::from_str(
-                "'import' requires the first argument to be a string".into(),
-            ))
-        }
-    };
+    let path = args.next_val()?.get_string()?;
+    args.done()?;
 
-    import(importctx, path)
+    import(importctx, path.as_ref())
 }
 
 pub fn init_with_importer(scope: &Rc<RefCell<Scope>>, ctx: Rc<ImportCtx>) {
