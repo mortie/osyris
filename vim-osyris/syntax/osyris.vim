@@ -15,8 +15,8 @@ set iskeyword+=+,-,*,/,=,!,<,>,&,\|,?,@,#,$,%
 syntax keyword osyrisKeyword true false none
 highlight link osyrisKeyword Keyword
 
-syntax keyword osyrisFunction def set mutate if match while print
-syntax keyword osyrisFunction bind lambda lazy
+syntax keyword osyrisFunction def set mutate if match while print import
+syntax keyword osyrisFunction bind lambda lazy do
 syntax keyword osyrisFunction list list-push list-pop list-map
 syntax keyword osyrisFunction dict dict-set
 syntax keyword osyrisFunction try error
