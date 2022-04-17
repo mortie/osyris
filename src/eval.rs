@@ -106,11 +106,19 @@ impl ValRef {
         match (a, b) {
             (ValRef::None, ValRef::None) => true,
             (ValRef::Number(a), ValRef::Number(b)) => a == b,
+            (ValRef::Bool(a), ValRef::Bool(b)) => a == b,
             (ValRef::String(a), ValRef::String(b)) => a == b,
             (ValRef::Block(a), ValRef::Block(b)) => Rc::ptr_eq(a, b),
-            (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
             (ValRef::List(a), ValRef::List(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Dict(a), ValRef::Dict(b)) => Rc::ptr_eq(a, b),
             (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Binding(a1, a2), ValRef::Binding(b1, b2)) =>
+                Rc::ptr_eq(a1, b1) && Rc::ptr_eq(a2, b2),
+            (ValRef::Lazy(a), ValRef::Lazy(b)) => Rc::ptr_eq(a, b),
+            (ValRef::ProtectedLazy(a), ValRef::ProtectedLazy(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Native(a), ValRef::Native(b)) => Rc::ptr_eq(a, b),
+            (ValRef::Port(a), ValRef::Port(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }
@@ -399,14 +407,12 @@ pub fn call(
         ValRef::Binding(b, func) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
-            {
-                let mut ss = subscope.borrow_mut();
-
-                for (key, val) in b.as_ref() {
-                    ss.insert(key.clone(), val.clone());
-                }
+            let mut ss = subscope.borrow_mut();
+            for (key, val) in b.as_ref() {
+                ss.insert(key.clone(), val.clone());
             }
 
+            drop(ss);
             call(func.as_ref(), args, &subscope)
         }
         ValRef::List(list) => {
