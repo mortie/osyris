@@ -424,6 +424,19 @@ fn lib_first(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, St
     Ok(ValRef::None)
 }
 
+/*
+@(def (name:string value:any)*)
+    -> none
+
+Defines the given values in the current scope.
+
+Examples:
+(def 'x 10)
+(+ x 20) -> 30
+
+(def 'x 40 'y 50)
+(+ x y) -> 90
+*/
 fn lib_def(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -437,6 +450,25 @@ fn lib_def(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
     Ok(ValRef::None)
 }
 
+/*
+@(func name:string (arg:string)* body:block)
+    -> none
+
+Defines a lambda with the given name and parameters in the current scope.
+
+Examples:
+(func 'square 'x {
+    [x * x]
+})
+(square 10) -> 100
+(square 5) -> 25
+
+(func 'add 'a 'b {
+    [a + b]
+})
+(add 10 20) -> 30
+(add 9 10) -> 19
+*/
 fn lib_func(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 

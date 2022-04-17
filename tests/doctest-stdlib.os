@@ -116,3 +116,25 @@
 	(asserteq (?? none none none 3) 3)
 	(asserteq (??) none)
 })
+
+(test-case 'def {
+	(def 'x 10)
+	(asserteq (+ x 20) 30)
+
+	(def 'x 40 'y 50)
+	(asserteq (+ x y) 90)
+})
+
+(test-case 'func {
+	(func 'square 'x {
+		[x * x]
+	})
+	(asserteq (square 10) 100)
+	(asserteq (square 5) 25)
+
+	(func 'add 'a 'b {
+		[a + b]
+	})
+	(asserteq (add 10 20) 30)
+	(asserteq (add 9 10) 19)
+})

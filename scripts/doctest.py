@@ -56,11 +56,13 @@ def gen_test(name, content):
                     compare = content[start:idx]
 
                     expr = "(asserteq " + expr + " " + compare + ")"
-                else:
-                    outfile.write(expr + "\n")
+                    idx += 1
 
                 for l in expr.split("\n"):
-                    outfile.write("\t" + l + "\n")
+                    outfile.write("\t" + l.replace("    ", "\t") + "\n")
+
+                if content[idx:idx+1] == "\n":
+                    outfile.write("\n")
             else:
                 idx += 1
         else:
