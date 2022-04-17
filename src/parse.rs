@@ -310,7 +310,7 @@ fn parse_dash<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     let ch = r.peek();
     if ch >= b'0' && ch <= b'9' {
         Ok(ast::Expression::Number(-read_number(r)?))
-    } else if is_space(ch) {
+    } else if is_separator(ch) {
         Ok(ast::Expression::Lookup(BString::from_str("-")))
     } else {
         let s = read_name(r)?;
