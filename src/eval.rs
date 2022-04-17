@@ -483,13 +483,6 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
         ValRef::Func(func) => func(Vec::new(), scope),
         ValRef::Lambda(l) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
-            {
-                let mut ss = subscope.borrow_mut();
-                ss.insert(
-                    BString::from_str("args"),
-                    ValRef::List(Rc::new(RefCell::new(vec![]))),
-                );
-            }
             eval_multiple(&l.body[..], &subscope)
         }
         ValRef::Block(exprs) => eval_multiple(exprs, &scope),
@@ -509,10 +502,6 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
             ))),
         },
         ast::Expression::Call(exprs, loc) => {
-            if exprs.len() == 0 {
-                return Ok(ValRef::None);
-            }
-
             match eval_call(exprs, scope) {
                 Ok(val) => Ok(val),
                 Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
