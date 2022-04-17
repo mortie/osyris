@@ -23,3 +23,4 @@
 (run "dict.os")
 (run "list.os")
 (run "fib.os")
+(run "doctest-stdlib.os")
