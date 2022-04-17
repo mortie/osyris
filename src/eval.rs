@@ -380,20 +380,20 @@ pub fn call(
         ValRef::Func(func) => func(args, scope),
         ValRef::Block(exprs) => eval_multiple(&exprs[..], scope),
         ValRef::Lambda(l) => {
+            let mut args = args.drain(0..);
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
-            {
-                let mut ss = subscope.borrow_mut();
+            let mut ss = subscope.borrow_mut();
+            for name in &l.args {
+                let val = match args.next() {
+                    Some(val) => val,
+                    None => break,
+                };
 
-                for idx in (0..l.args.len()).rev() {
-                    if idx >= args.len() {
-                        break;
-                    }
-
-                    ss.insert(l.args[idx].clone(), args.pop().unwrap());
-                }
+                ss.insert(name.clone(), val);
             }
 
+            drop(ss);
             eval_multiple(&l.body[..], &subscope)
         }
         ValRef::Binding(b, func) => {
