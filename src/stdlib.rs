@@ -8,6 +8,12 @@ use std::mem;
 use std::rc::Rc;
 use std::vec;
 
+/*
+@(print (arg:any)*)
+    -> none
+
+Print the arguments to 'stdout', separated by a space.
+*/
 fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -55,6 +61,16 @@ fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
     Ok(ValRef::None)
 }
 
+/*
+@(not val:bool)
+    -> bool
+
+Return a bool value that's the inverse of its argument.
+
+Examples:
+(not true) -> false
+(not false) -> true
+*/
 fn lib_not(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -63,6 +79,18 @@ fn lib_not(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
     Ok(ValRef::Bool(!arg.to_bool()))
 }
 
+/*
+@(+ (val:number)*)
+    -> number
+
+Return all the numbers added together.
+
+Examples:
+(+ 10 20) -> 30
+(+ 33) -> 33
+(+ 1 2 3 4 5) -> 15
+(+) -> 0
+*/
 fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
@@ -76,6 +104,19 @@ fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
     Ok(ValRef::Number(num))
 }
 
+/*
+@(- (val:number)*)
+    -> number
+
+Return all subsequent numbers subtracted from the first number.
+If there's only one argument, return the negative of that number.
+
+Examples:
+(- 10) -> -10
+(- 10 3) -> 7
+(- 10 2 3) -> 5
+(-) -> 0
+*/
 fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
@@ -91,6 +132,18 @@ fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
     Ok(ValRef::Number(num))
 }
 
+/*
+@(* (val:number)*)
+    -> number
+
+Return all numbers multiplied by each other.
+
+Examples:
+(* 10) -> 10
+(* 10 3) -> 30
+(* 10 2 3) -> 60
+(*) -> 0
+*/
 fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
@@ -104,6 +157,19 @@ fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
     Ok(ValRef::Number(num))
 }
 
+/*
+@(/ (val:number)*)
+    -> number
+
+Return all subsequent numbers divided from the first one.
+If there's only one argument, return the reciprocal of that number.
+
+Examples:
+(/ 10) -> 0.1
+(/ 10 2) -> 5
+(/ 30 3 2) -> 5
+(/) -> 0
+*/
 fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 1 {
         return Ok(ValRef::Number(0.0));
@@ -119,6 +185,20 @@ fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
     Ok(ValRef::Number(num))
 }
 
+/*
+@(== (val:any)*)
+    -> bool
+
+Return true if all values are equal, false otherwise.
+
+Examples:
+(== 10 10) -> true
+(== 20 10) -> false
+(== "Hello" "Hello" "Hello") -> true
+(== "Hello" "Hello" 11) -> false
+(== "11" 11) -> false
+(==) -> true
+*/
 fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() <= 1 {
         return Ok(ValRef::Bool(true));
@@ -133,6 +213,20 @@ fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     Ok(ValRef::Bool(true))
 }
 
+/*
+@(!= (val:any)*)
+    -> bool
+
+Return false if all values are equal, true otherwise.
+
+Examples:
+(!= 10 10) -> false
+(!= 20 10) -> true
+(!= "Hello" "Hello" "Hello") -> false
+(!= "Hello" "Hello" 11) -> true
+(!= "11" 11) -> true
+(!=) -> false
+*/
 fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     match lib_equals(args, scope) {
         Ok(ValRef::Bool(true)) => Ok(ValRef::Bool(false)),
@@ -141,7 +235,26 @@ fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
     }
 }
 
+/*
+@(<= (val:number)*)
+    -> bool
+
+Returns true if every value is less than or equal to the value to its right.
+
+Examples:
+(<= 10 20 30) -> true
+(<= 10 10 10) -> true
+(<= 4 5) -> true
+(<= 50 40 30) -> false
+(<= 10 20 30 50 40) -> false
+(<= 10) -> true
+(<=) -> true
+*/
 fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() == 0 {
+        return Ok(ValRef::Bool(true));
+    }
+
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() > args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -151,7 +264,26 @@ fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
     Ok(ValRef::Bool(true))
 }
 
+/*
+@(< (val:number)*)
+    -> bool
+
+Returns true if every value is less than the value to its right.
+
+Examples:
+(< 10 20 30) -> true
+(< 10 10 10) -> false
+(< 4 5) -> true
+(< 50 40 30) -> false
+(< 10 20 30 50 40) -> false
+(< 10) -> true
+(<) -> true
+*/
 fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() == 0 {
+        return Ok(ValRef::Bool(true));
+    }
+
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() >= args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -161,7 +293,26 @@ fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     Ok(ValRef::Bool(true))
 }
 
+/*
+@(>= (val:number)*)
+    -> bool
+
+Returns true if every value is greater than or equal to the value to its right.
+
+Examples:
+(>= 10 20 30) -> false
+(>= 10 10 10) -> true
+(>= 4 5) -> false
+(>= 50 40 30) -> true
+(>= 10 20 30 50 40) -> false
+(>= 10) -> true
+(>=) -> true
+*/
 fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() == 0 {
+        return Ok(ValRef::Bool(true));
+    }
+
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() < args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -171,7 +322,26 @@ fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
     Ok(ValRef::Bool(true))
 }
 
+/*
+@(> (val:number)*)
+    -> bool
+
+Returns true if every value is greater than the value to its right.
+
+Examples:
+(> 10 20 30) -> false
+(> 10 10 10) -> false
+(> 4 5) -> false
+(> 50 40 30) -> true
+(> 10 20 30 50 40) -> false
+(> 10) -> true
+(>) -> true
+*/
 fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() == 0 {
+        return Ok(ValRef::Bool(true));
+    }
+
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() <= args[idx + 1].to_num() {
             return Ok(ValRef::Bool(false));
@@ -181,31 +351,73 @@ fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
     Ok(ValRef::Bool(true))
 }
 
+/*
+@(|| (val:any)*)
+    -> bool
+
+Returns true if any argument is truthy, and false otherwise.
+All values other than 'false' and 'none' are considered truthy.
+
+Examples:
+(|| "hello" false) -> true
+(|| false false) -> false
+(|| true) -> true
+(|| true false true) -> true
+(||) -> false
+*/
 fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    for idx in 0..args.len() - 1 {
+    for idx in 0..args.len() {
         if args[idx].to_bool() {
-            return Ok(args[idx].clone());
+            return Ok(ValRef::Bool(true));
         }
     }
 
-    Ok(args[args.len() - 1].clone())
+    Ok(ValRef::Bool(false))
 }
 
+/*
+@(&& (val:any)*)
+    -> bool
+
+Returns false if any argument is falsy, and true otherwise.
+The values 'false' and 'none' are considered falsy.
+
+Examples:
+(&& "hello" false) -> false
+(&& false false) -> false
+(&& true) -> true
+(&& true true) -> true
+(&& true false true) -> false
+(&&) -> true
+*/
 fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    for idx in 0..args.len() - 1 {
+    for idx in 0..args.len() {
         if !args[idx].to_bool() {
-            return Ok(args[idx].clone());
+            return Ok(ValRef::Bool(false));
         }
     }
 
-    Ok(args[args.len() - 1].clone())
+    Ok(ValRef::Bool(true))
 }
 
-fn lib_first(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    for arg in args {
+/*
+@(?? (val:any)*)
+    -> bool
+
+Returns the first value that's not 'none'.
+
+Examples:
+(?? none 10 20) -> 10
+(?? none) -> none
+(?? "Hello" none "Goodbye") -> "Hello"
+(?? none none none 3) -> 3
+(??) -> none
+*/
+fn lib_first(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    for arg in args.drain(0..) {
         match arg {
             ValRef::None => (),
-            _ => return Ok(arg.clone()),
+            _ => return Ok(arg),
         }
     }
 
@@ -221,6 +433,41 @@ fn lib_def(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
         let val = args.next_val()?;
         scopemut.insert(key.as_ref().clone(), val);
     }
+
+    Ok(ValRef::None)
+}
+
+fn lib_func(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let name = args.next_val()?.get_string()?;
+
+    let mut argnames: Vec<BString> = Vec::new();
+    let mut block = None;
+    while let Some(arg) = args.next() {
+        match arg {
+            ValRef::String(s) => argnames.push(s.as_ref().clone()),
+            ValRef::Block(b) => {
+                block = Some(b);
+                break;
+            }
+            _ => {
+                return Err(StackTrace::from_str("Expected string or block"));
+            }
+        }
+    }
+
+    args.done()?;
+    let block = match block {
+        Some(block) => block,
+        None => return Err(StackTrace::from_str("Expected block")),
+    };
+
+    let val = ValRef::Lambda(Rc::new(eval::LambdaVal {
+        args: argnames,
+        body: block,
+    }));
+    scope.borrow_mut().insert(name.as_ref().clone(), val.clone());
 
     Ok(ValRef::None)
 }
@@ -480,32 +727,34 @@ fn lib_lazy(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     Ok(ValRef::ProtectedLazy(Rc::new(val)))
 }
 
-fn lib_lambda(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    let mut argnames: Vec<BString> = Vec::new();
-    for idx in 0..args.len() {
-        match &args[idx] {
-            eval::ValRef::String(bs) => argnames.push(bs.as_ref().clone()),
-            eval::ValRef::Block(q) => {
-                if idx != args.len() - 1 {
-                    return Err(StackTrace::from_str(
-                        "'lambda' requires the block to be the last argument",
-                    ));
-                }
+fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
 
-                return Ok(eval::ValRef::Lambda(Rc::new(eval::LambdaVal {
-                    args: argnames,
-                    body: q.clone(),
-                })));
+    let mut argnames: Vec<BString> = Vec::new();
+    let mut block = None;
+    while let Some(arg) = args.next() {
+        match arg {
+            ValRef::String(s) => argnames.push(s.as_ref().clone()),
+            ValRef::Block(b) => {
+                block = Some(b);
+                break;
             }
             _ => {
-                return Err(StackTrace::from_str(
-                    "'lambda' requires arguments to be blocks or strings",
-                ))
+                return Err(StackTrace::from_str("Expected string or block"));
             }
         }
     }
 
-    Err(StackTrace::from_str("'lambda' requires a block argument"))
+    args.done()?;
+    let block = match block {
+        Some(block) => block,
+        None => return Err(StackTrace::from_str("Expected block")),
+    };
+
+    Ok(ValRef::Lambda(Rc::new(eval::LambdaVal {
+        args: argnames,
+        body: block,
+    })))
 }
 
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
@@ -559,7 +808,8 @@ fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<Val
         let mut lstmut = lst.borrow_mut();
         for idx in 0..lstmut.len() {
             let val = mem::replace(&mut lstmut[idx], ValRef::None);
-            lstmut[idx] = eval::call(&func, vec![val], scope)?;
+            let vec = vec![val, ValRef::Number(idx as f64)];
+            lstmut[idx] = eval::call(&func, vec, scope)?;
         }
 
         drop(lstmut);
@@ -569,11 +819,28 @@ fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<Val
         let mut lstmut: Vec<ValRef> = Vec::new();
         lstmut.reserve(lst.len());
         for idx in 0..lst.len() {
-            lstmut.push(eval::call(&func, vec![lst[idx].clone()], scope)?);
+            let vec = vec![lst[idx].clone(), ValRef::Number(idx as f64)];
+            lstmut.push(eval::call(&func, vec, scope)?);
         }
 
         Ok(ValRef::List(Rc::new(RefCell::new(lstmut))))
     }
+}
+
+fn lib_list_for(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let lst = args.next_val()?.get_list()?;
+    let func = args.next_val()?;
+    args.done()?;
+
+    let mut retval = ValRef::None;
+    for idx in 0..lst.borrow().len() {
+        drop(retval);
+        retval = eval::call(&func, vec![lst.borrow()[idx].clone()], scope)?;
+    }
+
+    Ok(retval)
 }
 
 fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
@@ -590,6 +857,41 @@ fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 }
 
 fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+    let dict = args.next_val()?.get_dict()?;
+
+    let dict = if Rc::strong_count(&dict) == 1 {
+        dict
+    } else {
+        Rc::new((*dict).clone())
+    };
+
+    let mut dictmut = dict.borrow_mut();
+    while args.has_next() {
+        let key = args.next_val()?.get_string()?;
+        let val = args.next_val()?;
+
+        dictmut.insert(key.as_ref().clone(), val.clone());
+    }
+
+    drop(dictmut);
+    Ok(ValRef::Dict(dict))
+}
+
+/*
+@(dict-mutate d:dict key:string cb:func (arg:any)*)
+    -> dict
+
+Create a new dict with the key modified by the callback function.
+It's semantically the same as this:
+    (dict-set d key (cb d.key arg1 arg2 ...))
+Except that it might allow for refcount==1 optimizations.
+*/
+fn lib_dict_mutate(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() < 3 {
+        return Err(StackTrace::from_str("Not enough arguments"));
+    }
+
     let mut args = args.drain(0..);
     let dict = args.next_val()?.get_dict()?;
 
@@ -645,6 +947,7 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("??", Rc::new(lib_first));
 
     s.put_func("def", Rc::new(lib_def));
+    s.put_func("func", Rc::new(lib_func));
     s.put_func("set", Rc::new(lib_set));
     s.put_func("mutate", Rc::new(lib_mutate));
 
@@ -670,9 +973,11 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("list-push", Rc::new(lib_list_push));
     s.put_func("list-pop", Rc::new(lib_list_pop));
     s.put_func("list-map", Rc::new(lib_list_map));
+    s.put_func("list-for", Rc::new(lib_list_for));
 
     s.put_func("dict", Rc::new(lib_dict));
     s.put_func("dict-set", Rc::new(lib_dict_set));
+    s.put_func("dict-mutate", Rc::new(lib_dict_mutate));
 }
 
 pub struct WritePort {

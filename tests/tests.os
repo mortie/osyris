@@ -9,7 +9,15 @@
 }))
 
 (def 'assert (lambda 'x {
-	(if (not x) {(error "Assertion failed")})
+	(if (not x) {
+		(error "Assertion failed")
+	})
+}))
+
+(def 'asserteq (lambda 'a 'b {
+	(if [a != b] {
+		(error "Assertion failed: Expected" b "but got" a)
+	})
 }))
 
 (run "dict.os")

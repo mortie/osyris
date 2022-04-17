@@ -84,6 +84,7 @@ impl ValRef {
     pub fn to_bool(&self) -> bool {
         match self {
             ValRef::Bool(false) => false,
+            ValRef::None => false,
             _ => true,
         }
     }
