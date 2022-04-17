@@ -3,9 +3,9 @@
 	(import name)
 }))
 
-(def 'test-case (lambda 'name 'func {
+(def 'test-case (lambda 'name 'f {
 	(print "\tCase:" name)
-	((lambda func))
+	((lambda f))
 }))
 
 (def 'assert (lambda 'x {
