@@ -9,17 +9,21 @@ endif
 
 set iskeyword+=+,-,*,/,=,!,<,>,&,\|,?,@,#,$,%
 
+syn match osyrisFunctionCallee /(\@1<=[^ \t(){}\[\].]\+/
+highlight link osyrisFunctionCallee Identifier
+
 "syntax match osyrisIdentifier "[^ \t(){}\[\].]\+"
 "highlight link osyrisIdentifier Identifier
 
 syntax keyword osyrisKeyword true false none
 highlight link osyrisKeyword Keyword
 
-syntax keyword osyrisFunction def set mutate if match while print import
+syntax keyword osyrisFunction def func set mutate if match while print import
 syntax keyword osyrisFunction bind lambda lazy do not
-syntax keyword osyrisFunction list list-push list-pop list-map
+syntax keyword osyrisFunction list list-push list-pop list-map list-for
 syntax keyword osyrisFunction dict dict-set
 syntax keyword osyrisFunction try error
+syntax keyword osyrisFunction read write seek
 highlight link osyrisFunction Statement
 
 syntax keyword osyrisOperator + - * / == != < <= > >= ?? && \|\|
