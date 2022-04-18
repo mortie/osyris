@@ -10,6 +10,7 @@ examples_rx = re.compile(r"^Examples:\n(.*)", re.MULTILINE | re.DOTALL)
 
 if len(sys.argv) != 3:
     print("Usage:", sys.argv[0], "<infile> <outfile>")
+    exit(1)
 
 inpath = sys.argv[1]
 outpath = sys.argv[2]
@@ -19,6 +20,16 @@ outfile.write("; This test is auto-generated from doctest.py\n")
 outfile.write("; based on: " + inpath + "\n")
 
 def gen_test(name, content):
+    # This is pretty terrible code, but I couldn't be bothered to write
+    # a more proper parser.
+    # The basic idea is this:
+    # Find an expression by finding the corresponing ')' to some '('.
+    # If the ')' is followed by a '->', then output:
+    #     (asserteq <expression> <text after '->')
+    # Otherwise, just output the expression verbatim.
+    # If changes are needed in the future, it's probably easier
+    # to rewrite the whole thing than to try to extend the existing code.
+
     outfile.write("\n(test-case '" + name + " {\n")
 
     idx = 0
