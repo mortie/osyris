@@ -9,8 +9,7 @@ use std::rc::Rc;
 use std::vec;
 
 /*
-@(print (arg:any)*)
-    -> none
+@(print (arg:any)*) -> none
 
 Print the arguments to 'stdout', separated by a space.
 */
@@ -62,10 +61,9 @@ fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
 }
 
 /*
-@(not val:bool)
-    -> bool
+@(not val:bool) -> bool
 
-Return a bool value that's the inverse of its argument.
+Returns a bool value that's the inverse of its argument.
 
 Examples:
 (not true) -> false
@@ -80,10 +78,9 @@ fn lib_not(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
 }
 
 /*
-@(+ (val:number)*)
-    -> number
+@(+ (val:number)*) -> number
 
-Return all the numbers added together.
+Returns all the numbers added together.
 
 Examples:
 (+ 10 20) -> 30
@@ -105,10 +102,9 @@ fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
 }
 
 /*
-@(- (val:number)*)
-    -> number
+@(- (val:number)*) -> number
 
-Return all subsequent numbers subtracted from the first number.
+Returns all subsequent numbers subtracted from the first number.
 If there's only one argument, return the negative of that number.
 
 Examples:
@@ -133,10 +129,9 @@ fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
 }
 
 /*
-@(* (val:number)*)
-    -> number
+@(* (val:number)*) -> number
 
-Return all numbers multiplied by each other.
+Returns all numbers multiplied by each other.
 
 Examples:
 (* 10) -> 10
@@ -158,10 +153,9 @@ fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
 }
 
 /*
-@(/ (val:number)*)
-    -> number
+@(/ (val:number)*) -> number
 
-Return all subsequent numbers divided from the first one.
+Returns all subsequent numbers divided from the first one.
 If there's only one argument, return the reciprocal of that number.
 
 Examples:
@@ -186,10 +180,9 @@ fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
 }
 
 /*
-@(== (val:any)*)
-    -> bool
+@(== (val:any)*) -> bool
 
-Return true if all values are equal, false otherwise.
+Returns true if all values are equal, false otherwise.
 
 Examples:
 (== 10 10) -> true
@@ -214,10 +207,9 @@ fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
 }
 
 /*
-@(!= (val:any)*)
-    -> bool
+@(!= (val:any)*) -> bool
 
-Return false if all values are equal, true otherwise.
+Returns false if all values are equal, true otherwise.
 
 Examples:
 (!= 10 10) -> false
@@ -236,8 +228,7 @@ fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
 }
 
 /*
-@(<= (val:number)*)
-    -> bool
+@(<= (val:number)*) -> bool
 
 Returns true if every value is less than or equal to the value to its right.
 
@@ -265,8 +256,7 @@ fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
 }
 
 /*
-@(< (val:number)*)
-    -> bool
+@(< (val:number)*) -> bool
 
 Returns true if every value is less than the value to its right.
 
@@ -294,8 +284,7 @@ fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 }
 
 /*
-@(>= (val:number)*)
-    -> bool
+@(>= (val:number)*) -> bool
 
 Returns true if every value is greater than or equal to the value to its right.
 
@@ -323,8 +312,7 @@ fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTr
 }
 
 /*
-@(> (val:number)*)
-    -> bool
+@(> (val:number)*) -> bool
 
 Returns true if every value is greater than the value to its right.
 
@@ -352,8 +340,7 @@ fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 }
 
 /*
-@(|| (val:any)*)
-    -> bool
+@(|| (val:any)*) -> bool
 
 Returns true if any argument is truthy, and false otherwise.
 All values other than 'false' and 'none' are considered truthy.
@@ -376,8 +363,7 @@ fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrac
 }
 
 /*
-@(&& (val:any)*)
-    -> bool
+@(&& (val:any)*) -> bool
 
 Returns false if any argument is falsy, and true otherwise.
 The values 'false' and 'none' are considered falsy.
@@ -401,8 +387,7 @@ fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
 }
 
 /*
-@(?? (val:any)*)
-    -> bool
+@(?? (val:any)*) -> bool
 
 Returns the first value that's not 'none'.
 
@@ -425,16 +410,15 @@ fn lib_first(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, St
 }
 
 /*
-@(def (name:string value:any)*)
-    -> none
+@(def (name:string value:any)*) -> none
 
 Defines the given values in the current scope.
 
 Examples:
-(def 'x 10)
-(+ x 20) -> 30
+(def 'x 10) -> none
+(== x 10) -> true
 
-(def 'x 40 'y 50)
+(def 'x 40 'y 50) -> none
 (+ x y) -> 90
 */
 fn lib_def(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
@@ -451,8 +435,7 @@ fn lib_def(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
 }
 
 /*
-@(func name:string (arg:string)* body:block)
-    -> none
+@(func name:string (arg:string)* body:block) -> none
 
 Defines a lambda with the given name and parameters in the current scope.
 
@@ -504,6 +487,22 @@ fn lib_func(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
     Ok(ValRef::None)
 }
 
+/*
+@(set (name:string value:any)*) -> none
+
+Replace the value with the given name with the given value.
+
+Examples:
+(def 'x 100)
+(== x 100) -> true
+(set 'x 50) -> none
+(== x 50) -> true
+
+({
+    (set 'x 3)
+})
+(== x 3) -> true
+*/
 fn lib_set(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -523,6 +522,28 @@ fn lib_set(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
     Ok(ValRef::None)
 }
 
+/*
+@(mutate name:string cb:func (arg:any)*) -> any
+
+Replace the value with the given name with the return value of the callback function.
+
+This:
+
+    (mutate 'x + 1)
+
+Is semantically the same as this:
+
+    (set 'x (+ x 1))
+
+Except that it might allow for refcount==1 optimizations, and that
+the modified value is returned.
+
+Examples:
+(def 'x 10)
+(== x 10) -> true
+(mutate 'x + 5) -> 15
+(== x 15) -> true
+*/
 fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 2 {
         return Err(StackTrace::from_str("Not enough arguments"));
@@ -552,6 +573,22 @@ fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRe
     Ok(res)
 }
 
+/*
+@(if cond:bool if-body:func (else-body:func)?) -> any
+
+Run the if-body if the condition is truthy, and the else-body
+if the condition is falsy. Returns the return value of whichever
+function is executed (or none if the condition is false and there's no else-body).
+
+Examples:
+(if [10 == 10] {"10 is 10"} {"10 is not 10"}) -> "10 is 10"
+(if [20 == 10] {"20 is 10"} {"20 is not 10"}) -> "20 is not 10"
+(if true {
+    (def 'x 10)
+    [x + 30]
+}) -> 40
+(if false {10}) -> none
+*/
 fn lib_if(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -569,6 +606,26 @@ fn lib_if(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, S
     }
 }
 
+/*
+@(match (case:block)) -> any
+
+Each argument should be a "block", where the first expression is a condition,
+and the subsequent expressions form a "body".
+
+Examples:
+(def 'x 10)
+(match
+    {[x == 20] "x is 20"}
+    {[x == 10] "x is 10"}
+) -> "x is 10"
+
+(match
+    {false 50}
+    {true
+        (def 'num 99)
+        [num + 1]}
+) -> 100
+*/
 fn lib_match(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -911,12 +968,18 @@ fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef,
 }
 
 /*
-@(dict-mutate d:dict key:string cb:func (arg:any)*)
-    -> dict
+@(dict-mutate d:dict key:string cb:func (arg:any)*) -> dict
 
 Create a new dict with the key modified by the callback function.
-It's semantically the same as this:
-    (dict-set d key (cb d.key arg1 arg2 ...))
+
+This:
+
+    (dict-mutate d 'x + 1)
+
+Is semantically the same as this:
+
+    (dict-set d 'x (+ d.x 1))
+
 Except that it might allow for refcount==1 optimizations.
 */
 fn lib_dict_mutate(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
