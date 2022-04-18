@@ -118,10 +118,10 @@
 })
 
 (test-case 'def {
-	(def 'x 10)
-	(asserteq (+ x 20) 30)
+	(asserteq (def 'x 10) none)
+	(asserteq (== x 10) true)
 
-	(def 'x 40 'y 50)
+	(asserteq (def 'x 40 'y 50) none)
 	(asserteq (+ x y) 90)
 })
 
@@ -137,4 +137,48 @@
 	})
 	(asserteq (add 10 20) 30)
 	(asserteq (add 9 10) 19)
+})
+
+(test-case 'set {
+	(def 'x 100)
+	(asserteq (== x 100) true)
+	(asserteq (set 'x 50) none)
+	(asserteq (== x 50) true)
+
+	({
+		(set 'x 3)
+	})
+	(asserteq (== x 3) true)
+})
+
+(test-case 'mutate {
+	(def 'x 10)
+	(asserteq (== x 10) true)
+	(asserteq (mutate 'x + 5) 15)
+	(asserteq (== x 15) true)
+})
+
+(test-case 'if {
+	(asserteq (if [10 == 10] {"10 is 10"} {"10 is not 10"}) "10 is 10")
+	(asserteq (if [20 == 10] {"20 is 10"} {"20 is not 10"}) "20 is not 10")
+	(asserteq (if true {
+		(def 'x 10)
+		[x + 30]
+	}) 40)
+	(asserteq (if false {10}) none)
+})
+
+(test-case 'match {
+	(def 'x 10)
+	(asserteq (match
+		{[x == 20] "x is 20"}
+		{[x == 10] "x is 10"}
+	) "x is 10")
+
+	(asserteq (match
+		{false 50}
+		{true
+			(def 'num 99)
+			[num + 1]}
+	) 100)
 })
