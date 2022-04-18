@@ -9,7 +9,7 @@ pub struct Location {
     pub file: Rc<BString>,
 }
 
-#[derive(Debug)]
+#[derive()]
 pub enum Expression {
     String(BString),
     Number(f64),
@@ -40,7 +40,7 @@ impl fmt::Display for Expression {
                 write!(f, ")")
             }
             Expression::Block(exprs) => {
-                write!(f, "'(")?;
+                write!(f, "{{")?;
                 let mut first = true;
                 for expr in exprs.iter() {
                     if !first {
@@ -50,8 +50,14 @@ impl fmt::Display for Expression {
 
                     write!(f, "{}", expr)?;
                 }
-                write!(f, ")")
+                write!(f, "}}")
             }
         }
+    }
+}
+
+impl fmt::Debug for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
