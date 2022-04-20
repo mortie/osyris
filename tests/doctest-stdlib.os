@@ -182,3 +182,35 @@
 			[num + 1]}
 	) 100)
 })
+
+(test-case 'while {
+	(def 'index 0)
+	(def 'sum 1)
+	(asserteq (while {[index < 4]} {
+		(set 'sum [sum * 2])
+		(set 'index [index + 1])
+		sum
+	}) 16)
+
+	(asserteq (== sum 16) true)
+	(asserteq (== index 4) true)
+
+	(asserteq (while {false}) none)
+})
+
+(test-case 'do {
+	(asserteq (do 1 2 3) 3)
+	(asserteq (do (+ 1 3 5) (* 2 4) (- 9 1)) 8)
+	(asserteq (do) none)
+
+	(asserteq (do (def 'x 10) [x + 5]) 15)
+})
+
+(test-case 'bind {
+})
+
+(test-case 'with {
+	(asserteq (with 'num [[100 * 3] + [10 * 2]] {
+		[num + 5]
+	}) 325)
+})

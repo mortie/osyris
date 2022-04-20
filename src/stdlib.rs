@@ -644,6 +644,27 @@ fn lib_match(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
     Ok(ValRef::None)
 }
 
+/*
+@(while condition:func body:func?) -> any
+
+Call the condition function. If it returns true, call the body
+if it exists, then loop. If it returns false, return the last thing
+the body function returned, or none.
+
+Examples:
+(def 'index 0)
+(def 'sum 1)
+(while {[index < 4]} {
+    (set 'sum [sum * 2])
+    (set 'index [index + 1])
+    sum
+}) -> 16
+
+(== sum 16) -> true
+(== index 4) -> true
+
+(while {false}) -> none
+*/
 fn lib_while(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -667,6 +688,20 @@ fn lib_while(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
     }
 }
 
+/*
+@(do (args:any)*) -> any
+
+Returns the last argument. Used to have multiple expressions where one expression
+was expected, like the comma operator in C-like languages.
+
+Examples:
+(do 1 2 3) -> 3
+(do (+ 1 3 5) (* 2 4) (- 9 1)) -> 8
+(do) -> none
+
+; Expressions may have side-effects, which is generally when you'd need 'do'
+(do (def 'x 10) [x + 5]) -> 15
+*/
 fn lib_do(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if let Some(val) = args.pop() {
         Ok(val)
@@ -675,6 +710,29 @@ fn lib_do(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stack
     }
 }
 
+/*
+@(bind (key:string value:any)* body:func) -> binding
+
+Create a binding. When the binding is called, its body function will be called
+with the bound values in its scope.
+
+Examples:
+(def 'f (bind 'x 10 'y 20 {
+    [x + y]
+})
+(f) -> 30
+
+; A more useful example:
+(func 'create-function {
+    (def 'x 10)
+    (def 'y 20)
+    (bind 'x x 'y y {
+        [x + y]
+    })
+})
+(def 'f (create-func))
+(f) -> 30
+*/
 fn lib_bind(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -690,6 +748,16 @@ fn lib_bind(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     Ok(ValRef::Binding(Rc::new(map), Rc::new(func)))
 }
 
+/*
+@(with (key:string value:any) body:func) -> any
+
+Call a function with some variables in its scope.
+
+Examples:
+(with 'num [[100 * 3] + [10 * 2]] {
+    [num + 5]
+}) -> 325
+*/
 fn lib_with(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 

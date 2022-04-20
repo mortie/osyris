@@ -21,6 +21,10 @@
 * [: mutate](#-mutate)
 * [: if](#-if)
 * [: match](#-match)
+* [: while](#-while)
+* [: do](#-do)
+* [: bind](#-bind)
+* [: with](#-with)
 * [: dict-mutate](#-dict-mutate)
 
 ---
@@ -390,6 +394,90 @@ Examples:
             (def 'num 99)
             [num + 1]}
     ) -> 100
+
+---
+
+### : while
+
+    (while condition:func body:func?) -> any
+
+Call the condition function. If it returns true, call the body
+if it exists, then loop. If it returns false, return the last thing
+the body function returned, or none.
+
+Examples:
+
+    (def 'index 0)
+    (def 'sum 1)
+    (while {[index < 4]} {
+        (set 'sum [sum * 2])
+        (set 'index [index + 1])
+        sum
+    }) -> 16
+
+    (== sum 16) -> true
+    (== index 4) -> true
+
+    (while {false}) -> none
+
+---
+
+### : do
+
+    (do (args:any)*) -> any
+
+Returns the last argument. Used to have multiple expressions where one expression
+was expected, like the comma operator in C-like languages.
+
+Examples:
+
+    (do 1 2 3) -> 3
+    (do (+ 1 3 5) (* 2 4) (- 9 1)) -> 8
+    (do) -> none
+
+    ; Expressions may have side-effects, which is generally when you'd need 'do'
+    (do (def 'x 10) [x + 5]) -> 15
+
+---
+
+### : bind
+
+    (bind (key:string value:any)* body:func) -> binding
+
+Create a binding. When the binding is called, its body function will be called
+with the bound values in its scope.
+
+Examples:
+
+    (def 'f (bind 'x 10 'y 20 {
+        [x + y]
+    })
+    (f) -> 30
+
+    ; A more useful example:
+    (func 'create-function {
+        (def 'x 10)
+        (def 'y 20)
+        (bind 'x x 'y y {
+            [x + y]
+        })
+    })
+    (def 'f (create-func))
+    (f) -> 30
+
+---
+
+### : with
+
+    (with (key:string value:any) body:func) -> any
+
+Call a function with some variables in its scope.
+
+Examples:
+
+    (with 'num [[100 * 3] + [10 * 2]] {
+        [num + 5]
+    }) -> 325
 
 ---
 
