@@ -25,6 +25,18 @@
 * [: do](#-do)
 * [: bind](#-bind)
 * [: with](#-with)
+* [: read](#-read)
+* [: write](#-write)
+* [: seek](#-seek)
+* [: error](#-error)
+* [: try](#-try)
+* [: lazy](#-lazy)
+* [: lambda](#-lambda)
+* [: list](#-list)
+* [: list-push](#-list-push)
+* [: list-pop](#-list-pop)
+* [: list-map](#-list-map)
+* [: list-last](#-list-last)
 * [: dict-mutate](#-dict-mutate)
 
 ---
@@ -478,6 +490,188 @@ Examples:
     (with 'num [[100 * 3] + [10 * 2]] {
         [num + 5]
     }) -> 325
+
+---
+
+### : read
+
+    (read port:port size:number?) -> any
+
+Read from a port.
+
+---
+
+### : write
+
+    (write port:port value:any) -> none
+
+Write to a port.
+
+---
+
+### : seek
+
+    (seek port:port offset:number from:string?) -> none
+
+Seek a port. 'from' can be:
+* set: Seek from the beginning (default)
+* end: Seek from the end
+* current: Seek from the current position
+
+---
+
+### : error
+
+    (error (message:any)*) -> error
+
+Create an error. An error contains a value:
+* If 'error' is called with no arguments, the value is 'none'.
+* If 'error' is called with one argument, the value is that argument.
+* If 'error' is called with multiple arguments, they are concatenated together
+  and the value is the resulting string.
+
+---
+
+### : try
+
+    (try body:func catch:func) -> any
+
+Call 'body'. If it returns an error, call 'catch' with that error's value as an argument.
+
+Examples:
+
+    (try {
+        (error "Oh no")
+    } (lambda 'err {
+        ; somehow handle the error
+        "An error occurred"
+    })) -> "An error occurred"
+
+---
+
+### : lazy
+
+    (lazy f:func) -> lazy
+
+Create a lazy variable.
+A lazy variable contains a reference to a function,
+and whenever the variable is used, that function
+is implicitly called and the variable evaluates to
+the function's return value.
+
+Examples:
+
+    (def 'make-ten {10})
+    (def 'ten (lazy make-ten))
+    (== ten 10) -> true
+
+---
+
+### : lambda
+
+    (lambda (param:string)* body:block) -> lambda
+
+Create a lambda, which is like a block, but which creates
+its own scope when called and which has named arguments.
+
+Examples:
+
+    (def 'add (lambda 'x 'y {
+        [x + y]
+    }))
+    (add 10 20) -> 30
+    (add 5 7) -> 12
+
+---
+
+### : list
+
+    (list (value:any)*) -> list
+
+Create a list.
+
+A list can be called with a numeric index as its argument.
+The list then returns the value at that index.
+
+Examples:
+
+    (== ((list) 0) none) -> true
+
+    (def 'l (list 10 20))
+    (l 0) -> 10
+    (l 1) -> 20
+    (l 2) -> none
+
+    ; This is an alternate function call syntax
+    (== l.0 10) -> true
+    (== l.1 20) -> true
+    (== l.[0 + 1] 20) -> true
+    (== l.(+ 0 1) 20) -> true
+
+---
+
+### : list-push
+
+    (list-push l:list (value:any*)) -> list
+
+Returns a new list with new values appended.
+
+Examples:
+
+    (def 'l (list 10))
+    (l 0) -> 10
+    (l 1) -> none
+    ((list-push l 20) 1) -> 20
+    (mutate 'l list-push 30 40)
+    (l 1) -> 30
+    (l 2) -> 40
+
+---
+
+### : list-pop
+
+    (list-pop l:list) -> list
+
+Returns a new list with the last value removed.
+
+Examples:
+
+    (def 'l (list 10 20))
+    (l 0) -> 10
+    (l 1) -> 20
+    (l 2) -> none
+    (mutate 'l list-pop)
+    (l 0) -> 10
+    (l 1) -> none
+
+---
+
+### : list-map
+
+    (list-map l:list transform:func) -> list
+
+Returns a new list where every value is transformed by the transform function.
+
+Examples:
+
+    (def 'l (list 1 2 3))
+    (mutate 'l list-map (lambda 'x {[x * 10]}))
+    (l 0) -> 10
+    (l 1) -> 20
+    (l 2) -> 30
+
+---
+
+### : list-last
+
+    (list-last l:list) -> any
+
+Returns the last vaule of a list, or 'none'.
+
+Examples:
+
+    (list-last (list 10 20)) -> 20
+    (list-last (list)) -> none
 
 ---
 

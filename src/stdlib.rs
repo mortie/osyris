@@ -775,6 +775,11 @@ fn lib_with(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
     eval::call(&func, vec![], &Rc::new(RefCell::new(s)))
 }
 
+/*
+@(read port:port size:number?) -> any
+
+Read from a port.
+*/
 fn lib_read(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -794,6 +799,11 @@ fn lib_read(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     }
 }
 
+/*
+@(write port:port value:any) -> none
+
+Write to a port.
+*/
 fn lib_write(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -808,6 +818,14 @@ fn lib_write(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, St
     }
 }
 
+/*
+@(seek port:port offset:number from:string?) -> none
+
+Seek a port. 'from' can be:
+* set: Seek from the beginning (default)
+* end: Seek from the end
+* current: Seek from the current position
+*/
 fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -837,6 +855,15 @@ fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     }
 }
 
+/*
+@(error (message:any)*) -> error
+
+Create an error. An error contains a value:
+* If 'error' is called with no arguments, the value is 'none'.
+* If 'error' is called with one argument, the value is that argument.
+* If 'error' is called with multiple arguments, they are concatenated together
+  and the value is the resulting string.
+*/
 fn lib_error(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() == 0 {
         Err(StackTrace::from_val(ValRef::None))
@@ -862,6 +889,19 @@ fn lib_error(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackT
     }
 }
 
+/*
+@(try body:func catch:func) -> any
+
+Call 'body'. If it returns an error, call 'catch' with that error's value as an argument.
+
+Examples:
+(try {
+    (error "Oh no")
+} (lambda 'err {
+    ; somehow handle the error
+    "An error occurred"
+})) -> "An error occurred"
+*/
 fn lib_try(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -875,6 +915,20 @@ fn lib_try(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
     }
 }
 
+/*
+@(lazy f:func) -> lazy
+
+Create a lazy variable.
+A lazy variable contains a reference to a function,
+and whenever the variable is used, that function
+is implicitly called and the variable evaluates to
+the function's return value.
+
+Examples:
+(def 'make-ten {10})
+(def 'ten (lazy make-ten))
+(== ten 10) -> true
+*/
 fn lib_lazy(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -884,6 +938,19 @@ fn lib_lazy(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     Ok(ValRef::ProtectedLazy(Rc::new(val)))
 }
 
+/*
+@(lambda (param:string)* body:block) -> lambda
+
+Create a lambda, which is like a block, but which creates
+its own scope when called and which has named arguments.
+
+Examples:
+(def 'add (lambda 'x 'y {
+    [x + y]
+}))
+(add 10 20) -> 30
+(add 5 7) -> 12
+*/
 fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -914,10 +981,46 @@ fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
     })))
 }
 
+/*
+@(list (value:any)*) -> list
+
+Create a list.
+
+A list can be called with a numeric index as its argument.
+The list then returns the value at that index.
+
+Examples:
+(== ((list) 0) none) -> true
+
+(def 'l (list 10 20))
+(l 0) -> 10
+(l 1) -> 20
+(l 2) -> none
+
+; This is an alternate function call syntax
+(== l.0 10) -> true
+(== l.1 20) -> true
+(== l.[0 + 1] 20) -> true
+(== l.(+ 0 1) 20) -> true
+*/
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     Ok(ValRef::List(Rc::new(RefCell::new(args))))
 }
 
+/*
+@(list-push l:list (value:any*)) -> list
+
+Returns a new list with new values appended.
+
+Examples:
+(def 'l (list 10))
+(l 0) -> 10
+(l 1) -> none
+((list-push l 20) 1) -> 20
+(mutate 'l list-push 30 40)
+(l 1) -> 30
+(l 2) -> 40
+*/
 fn lib_list_push(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -938,6 +1041,20 @@ fn lib_list_push(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef
     Ok(ValRef::List(lst))
 }
 
+/*
+@(list-pop l:list) -> list
+
+Returns a new list with the last value removed.
+
+Examples:
+(def 'l (list 10 20))
+(l 0) -> 10
+(l 1) -> 20
+(l 2) -> none
+(mutate 'l list-pop)
+(l 0) -> 10
+(l 1) -> none
+*/
 fn lib_list_pop(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -954,6 +1071,18 @@ fn lib_list_pop(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef,
     Ok(ValRef::List(lst))
 }
 
+/*
+@(list-map l:list transform:func) -> list
+
+Returns a new list where every value is transformed by the transform function.
+
+Examples:
+(def 'l (list 1 2 3))
+(mutate 'l list-map (lambda 'x {[x * 10]}))
+(l 0) -> 10
+(l 1) -> 20
+(l 2) -> 30
+*/
 fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -981,6 +1110,28 @@ fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<Val
         }
 
         Ok(ValRef::List(Rc::new(RefCell::new(lstmut))))
+    }
+}
+
+/*
+@(list-last l:list) -> any
+
+Returns the last vaule of a list, or 'none'.
+
+Examples:
+(list-last (list 10 20)) -> 20
+(list-last (list)) -> none
+*/
+fn lib_list_last(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let lst = args.next_val()?.get_list()?;
+    args.done()?;
+
+    let lst = lst.borrow();
+    match lst.last() {
+        Some(v) => Ok(v.clone()),
+        None => Ok(ValRef::None)
     }
 }
 
@@ -1136,6 +1287,7 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("list-push", Rc::new(lib_list_push));
     s.put_func("list-pop", Rc::new(lib_list_pop));
     s.put_func("list-map", Rc::new(lib_list_map));
+    s.put_func("list-last", Rc::new(lib_list_last));
     s.put_func("list-for", Rc::new(lib_list_for));
 
     s.put_func("dict", Rc::new(lib_dict));

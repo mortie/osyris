@@ -214,3 +214,73 @@
 		[num + 5]
 	}) 325)
 })
+
+(test-case 'try {
+	(asserteq (try {
+		(error "Oh no")
+	} (lambda 'err {
+		; somehow handle the error
+		"An error occurred"
+	})) "An error occurred")
+})
+
+(test-case 'lazy {
+	(def 'make-ten {10})
+	(def 'ten (lazy make-ten))
+	(asserteq (== ten 10) true)
+})
+
+(test-case 'lambda {
+	(def 'add (lambda 'x 'y {
+		[x + y]
+	}))
+	(asserteq (add 10 20) 30)
+	(asserteq (add 5 7) 12)
+})
+
+(test-case 'list {
+	(asserteq (== ((list) 0) none) true)
+
+	(def 'l (list 10 20))
+	(asserteq (l 0) 10)
+	(asserteq (l 1) 20)
+	(asserteq (l 2) none)
+
+	(asserteq (== l.0 10) true)
+	(asserteq (== l.1 20) true)
+	(asserteq (== l.[0 + 1] 20) true)
+	(asserteq (== l.(+ 0 1) 20) true)
+})
+
+(test-case 'list-push {
+	(def 'l (list 10))
+	(asserteq (l 0) 10)
+	(asserteq (l 1) none)
+	(asserteq ((list-push l 20) 1) 20)
+	(mutate 'l list-push 30 40)
+	(asserteq (l 1) 30)
+	(asserteq (l 2) 40)
+})
+
+(test-case 'list-pop {
+	(def 'l (list 10 20))
+	(asserteq (l 0) 10)
+	(asserteq (l 1) 20)
+	(asserteq (l 2) none)
+	(mutate 'l list-pop)
+	(asserteq (l 0) 10)
+	(asserteq (l 1) none)
+})
+
+(test-case 'list-map {
+	(def 'l (list 1 2 3))
+	(mutate 'l list-map (lambda 'x {[x * 10]}))
+	(asserteq (l 0) 10)
+	(asserteq (l 1) 20)
+	(asserteq (l 2) 30)
+})
+
+(test-case 'list-last {
+	(asserteq (list-last (list 10 20)) 20)
+	(asserteq (list-last (list)) none)
+})
