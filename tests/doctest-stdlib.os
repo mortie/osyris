@@ -239,7 +239,7 @@
 })
 
 (test-case 'list {
-	(asserteq (== ((list) 0) none) true)
+	(asserteq ((list) 0) none)
 
 	(def 'l (list 10 20))
 	(asserteq (l 0) 10)
@@ -283,4 +283,46 @@
 (test-case 'list-last {
 	(asserteq (list-last (list 10 20)) 20)
 	(asserteq (list-last (list)) none)
+})
+
+(test-case 'list-for {
+	(def 'l (list 1 2 3))
+	(def 'sum 0)
+	(asserteq (list-for l (lambda 'el {
+		(mutate 'sum + el)
+	})) 6)
+})
+
+(test-case 'dict {
+	(asserteq ((dict) 'x) none)
+
+	(def 'd (dict
+		'x 10
+		'y 20))
+	(asserteq (d 'x) 10)
+	(asserteq (d 'y) 20)
+	(asserteq (d 'z) none)
+
+	(asserteq (== d.x 10) true)
+	(asserteq (== d.y 20) true)
+})
+
+(test-case 'dict-set {
+	(def 'd (dict 'x 10 'y 20))
+	(asserteq (d 'x) 10)
+	(mutate 'd dict-set 'x 30)
+	(asserteq (d 'x) 30)
+})
+
+(test-case 'dict-mutate {
+	(func 'add-one 'x {
+		[x + 1]
+	})
+	(def 'd (dict 'x 10 'y 20))
+	(asserteq (d 'x) 10)
+	(asserteq ((dict-mutate d 'x add-one) 'x) 11)
+	(asserteq ((dict-mutate d 'x + 1) 'x) 11)
+
+	(mutate 'd dict-mutate 'x - 3)
+	(asserteq (== d.x 7) true)
 })

@@ -987,10 +987,10 @@ fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
 Create a list.
 
 A list can be called with a numeric index as its argument.
-The list then returns the value at that index.
+The list then returns the value at that index, or 'none'.
 
 Examples:
-(== ((list) 0) none) -> true
+((list) 0) -> none
 
 (def 'l (list 10 20))
 (l 0) -> 10
@@ -1135,6 +1135,19 @@ fn lib_list_last(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef
     }
 }
 
+/*
+@(list-for l:list f:func) -> any
+
+Call the function with every element of the list.
+The return value is whatever the last function call returned.
+
+Examples:
+(def 'l (list 1 2 3))
+(def 'sum 0)
+(list-for l (lambda 'el {
+    (mutate 'sum + el)
+})) -> 6
+*/
 fn lib_list_for(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -1151,6 +1164,28 @@ fn lib_list_for(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<Val
     Ok(retval)
 }
 
+/*
+@(dict (key:string value:any)*) -> dict
+
+Create a dict.
+
+A dict can be called with a string key as its argument.
+The list then returns the value at that key, or 'none'.
+
+Examples:
+((dict) 'x) -> none
+
+(def 'd (dict
+    'x 10
+    'y 20))
+(d 'x) -> 10
+(d 'y) -> 20
+(d 'z) -> none
+
+; This is an alternate function call syntax
+(== d.x 10) -> true
+(== d.y 20) -> true
+*/
 fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
@@ -1164,6 +1199,17 @@ fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     Ok(ValRef::Dict(Rc::new(RefCell::new(dict))))
 }
 
+/*
+@(dict-set (key:string value:any)*) -> dict
+
+Returns a new dict with the new keys and values.
+
+Examples:
+(def 'd (dict 'x 10 'y 20))
+(d 'x) -> 10
+(mutate 'd dict-set 'x 30)
+(d 'x) -> 30
+*/
 fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
     let dict = args.next_val()?.get_dict()?;
@@ -1189,7 +1235,7 @@ fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef,
 /*
 @(dict-mutate d:dict key:string cb:func (arg:any)*) -> dict
 
-Create a new dict with the key modified by the callback function.
+Returns a new dict with the key modified by the callback function.
 
 This:
 
@@ -1200,14 +1246,29 @@ Is semantically the same as this:
     (dict-set d 'x (+ d.x 1))
 
 Except that it might allow for refcount==1 optimizations.
+
+Examples:
+(func 'add-one 'x {
+    [x + 1]
+})
+(def 'd (dict 'x 10 'y 20))
+(d 'x) -> 10
+((dict-mutate d 'x add-one) 'x) -> 11
+((dict-mutate d 'x + 1) 'x) -> 11
+
+; We can use it together with 'mutate'
+(mutate 'd dict-mutate 'x - 3)
+(== d.x 7) -> true
 */
-fn lib_dict_mutate(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_dict_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 3 {
         return Err(StackTrace::from_str("Not enough arguments"));
     }
 
-    let mut args = args.drain(0..);
-    let dict = args.next_val()?.get_dict()?;
+    let mut it = args.drain(0..2);
+    let dict = it.next_val()?.get_dict()?;
+    let name = it.next_val()?.get_string()?;
+    drop(it);
 
     let dict = if Rc::strong_count(&dict) == 1 {
         dict
@@ -1215,15 +1276,21 @@ fn lib_dict_mutate(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValR
         Rc::new((*dict).clone())
     };
 
-    let mut dictmut = dict.borrow_mut();
-    while args.has_next() {
-        let key = args.next_val()?.get_string()?;
-        let val = args.next_val()?;
+    let val = match dict.borrow_mut().remove(name.as_ref()) {
+        Some(val) => val,
+        None => {
+            return Err(StackTrace::from_string(format!(
+                "Variable '{}' doesn't exist",
+                name
+            )))
+        }
+    };
 
-        dictmut.insert(key.as_ref().clone(), val.clone());
-    }
+    let func = mem::replace(&mut args[0], val);
 
-    drop(dictmut);
+    let res = eval::call(&func, args, scope)?;
+    dict.borrow_mut().insert(name.as_ref().clone(), res.clone());
+
     Ok(ValRef::Dict(dict))
 }
 

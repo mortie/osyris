@@ -37,6 +37,9 @@
 * [: list-pop](#-list-pop)
 * [: list-map](#-list-map)
 * [: list-last](#-list-last)
+* [: list-for](#-list-for)
+* [: dict](#-dict)
+* [: dict-set](#-dict-set)
 * [: dict-mutate](#-dict-mutate)
 
 ---
@@ -591,11 +594,11 @@ Examples:
 Create a list.
 
 A list can be called with a numeric index as its argument.
-The list then returns the value at that index.
+The list then returns the value at that index, or 'none'.
 
 Examples:
 
-    (== ((list) 0) none) -> true
+    ((list) 0) -> none
 
     (def 'l (list 10 20))
     (l 0) -> 10
@@ -675,11 +678,69 @@ Examples:
 
 ---
 
+### : list-for
+
+    (list-for l:list f:func) -> any
+
+Call the function with every element of the list.
+The return value is whatever the last function call returned.
+
+Examples:
+
+    (def 'l (list 1 2 3))
+    (def 'sum 0)
+    (list-for l (lambda 'el {
+        (mutate 'sum + el)
+    })) -> 6
+
+---
+
+### : dict
+
+    (dict (key:string value:any)*) -> dict
+
+Create a dict.
+
+A dict can be called with a string key as its argument.
+The list then returns the value at that key, or 'none'.
+
+Examples:
+
+    ((dict) 'x) -> none
+
+    (def 'd (dict
+        'x 10
+        'y 20))
+    (d 'x) -> 10
+    (d 'y) -> 20
+    (d 'z) -> none
+
+    ; This is an alternate function call syntax
+    (== d.x 10) -> true
+    (== d.y 20) -> true
+
+---
+
+### : dict-set
+
+    (dict-set (key:string value:any)*) -> dict
+
+Returns a new dict with the new keys and values.
+
+Examples:
+
+    (def 'd (dict 'x 10 'y 20))
+    (d 'x) -> 10
+    (mutate 'd dict-set 'x 30)
+    (d 'x) -> 30
+
+---
+
 ### : dict-mutate
 
     (dict-mutate d:dict key:string cb:func (arg:any)*) -> dict
 
-Create a new dict with the key modified by the callback function.
+Returns a new dict with the key modified by the callback function.
 
 This:
 
@@ -690,3 +751,17 @@ Is semantically the same as this:
     (dict-set d 'x (+ d.x 1))
 
 Except that it might allow for refcount==1 optimizations.
+
+Examples:
+
+    (func 'add-one 'x {
+        [x + 1]
+    })
+    (def 'd (dict 'x 10 'y 20))
+    (d 'x) -> 10
+    ((dict-mutate d 'x add-one) 'x) -> 11
+    ((dict-mutate d 'x + 1) 'x) -> 11
+
+    ; We can use it together with 'mutate'
+    (mutate 'd dict-mutate 'x - 3)
+    (== d.x 7) -> true
