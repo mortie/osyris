@@ -7,6 +7,7 @@ use std::io;
 use std::mem;
 use std::rc::Rc;
 use std::vec;
+use std::iter;
 
 /*
 @(print (arg:any)*) -> none
@@ -1072,6 +1073,89 @@ fn lib_list_pop(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef,
 }
 
 /*
+@(list-insert l:list idx:number (value:any)*) -> list
+
+Returns a new list with some items inserted into the list at the given index.
+'l.[idx]' becomes the first 'value'.
+
+Examples:
+(def 'l (list 1 2 3))
+(mutate 'l list-insert 0 10)
+(l 0) -> 10
+(l 1) -> 1
+(l 2) -> 2
+(mutate 'l list-insert 2 99 100)
+(l 1) -> 1
+(l 2) -> 99
+(l 3) -> 100
+(l 4) -> 2
+*/
+fn lib_list_insert(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let lst = args.next_val()?.get_list()?;
+    let idx = args.next_val()?.get_number()? as usize;
+
+    if idx >= lst.borrow().len() {
+        return Err(StackTrace::from_str("Index out of bounds"));
+    }
+
+    let lst = if Rc::strong_count(&lst) == 1 {
+        lst
+    } else {
+        Rc::new((*lst).clone())
+    };
+
+    lst.borrow_mut().splice(idx..idx, args);
+    Ok(ValRef::List(lst))
+}
+
+/*
+@(list-remove l:list idx:number end:number?) -> list
+
+Returns a new list with some values removed.
+If an 'end' argument is provided, all values from 'idx' (inclusive)
+to 'end' (exclusive) are removed.
+If no 'end' argument is provided, only 'idx' is removed.
+
+Examples:
+(def 'l (list 1 2 3))
+(mutate 'l list-remove 1)
+(l 0) -> 1
+(l 1) -> 3
+(l 3) -> none
+
+(def 'l (list 1 2 3 4))
+(mutate 'l list-remove 1 3)
+(l 0) -> 1
+(l 1) -> 4
+(l 2) -> none
+*/
+fn lib_list_remove(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let lst = args.next_val()?.get_list()?;
+    let idx = args.next_val()?.get_number()? as usize;
+    let end = match args.next() {
+        None => idx + 1,
+        Some(x) => x.get_number()? as usize,
+    };
+
+    if idx >= lst.borrow().len() {
+        return Err(StackTrace::from_str("Index out of bounds"));
+    }
+
+    let lst = if Rc::strong_count(&lst) == 1 {
+        lst
+    } else {
+        Rc::new((*lst).clone())
+    };
+
+    lst.borrow_mut().splice(idx..end, iter::empty());
+    Ok(ValRef::List(lst))
+}
+
+/*
 @(list-map l:list transform:func) -> list
 
 Returns a new list where every value is transformed by the transform function.
@@ -1353,6 +1437,8 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("list", Rc::new(lib_list));
     s.put_func("list-push", Rc::new(lib_list_push));
     s.put_func("list-pop", Rc::new(lib_list_pop));
+    s.put_func("list-insert", Rc::new(lib_list_insert));
+    s.put_func("list-remove", Rc::new(lib_list_remove));
     s.put_func("list-map", Rc::new(lib_list_map));
     s.put_func("list-last", Rc::new(lib_list_last));
     s.put_func("list-for", Rc::new(lib_list_for));

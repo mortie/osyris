@@ -272,6 +272,33 @@
 	(asserteq (l 1) none)
 })
 
+(test-case 'list-insert {
+	(def 'l (list 1 2 3))
+	(mutate 'l list-insert 0 10)
+	(asserteq (l 0) 10)
+	(asserteq (l 1) 1)
+	(asserteq (l 2) 2)
+	(mutate 'l list-insert 2 99 100)
+	(asserteq (l 1) 1)
+	(asserteq (l 2) 99)
+	(asserteq (l 3) 100)
+	(asserteq (l 4) 2)
+})
+
+(test-case 'list-remove {
+	(def 'l (list 1 2 3))
+	(mutate 'l list-remove 1)
+	(asserteq (l 0) 1)
+	(asserteq (l 1) 3)
+	(asserteq (l 3) none)
+
+	(def 'l (list 1 2 3 4))
+	(mutate 'l list-remove 1 3)
+	(asserteq (l 0) 1)
+	(asserteq (l 1) 4)
+	(asserteq (l 2) none)
+})
+
 (test-case 'list-map {
 	(def 'l (list 1 2 3))
 	(mutate 'l list-map (lambda 'x {[x * 10]}))

@@ -35,6 +35,8 @@
 * [: list](#-list)
 * [: list-push](#-list-push)
 * [: list-pop](#-list-pop)
+* [: list-insert](#-list-insert)
+* [: list-remove](#-list-remove)
 * [: list-map](#-list-map)
 * [: list-last](#-list-last)
 * [: list-for](#-list-for)
@@ -646,6 +648,53 @@ Examples:
     (mutate 'l list-pop)
     (l 0) -> 10
     (l 1) -> none
+
+---
+
+### : list-insert
+
+    (list-insert l:list idx:number (value:any)*) -> list
+
+Returns a new list with some items inserted into the list at the given index.
+'l.[idx]' becomes the first 'value'.
+
+Examples:
+
+    (def 'l (list 1 2 3))
+    (mutate 'l list-insert 0 10)
+    (l 0) -> 10
+    (l 1) -> 1
+    (l 2) -> 2
+    (mutate 'l list-insert 2 99 100)
+    (l 1) -> 1
+    (l 2) -> 99
+    (l 3) -> 100
+    (l 4) -> 2
+
+---
+
+### : list-remove
+
+    (list-remove l:list idx:number end:number?) -> list
+
+Returns a new list with some values removed.
+If an 'end' argument is provided, all values from 'idx' (inclusive)
+to 'end' (exclusive) are removed.
+If no 'end' argument is provided, only 'idx' is removed.
+
+Examples:
+
+    (def 'l (list 1 2 3))
+    (mutate 'l list-remove 1)
+    (l 0) -> 1
+    (l 1) -> 3
+    (l 3) -> none
+
+    (def 'l (list 1 2 3 4))
+    (mutate 'l list-remove 1 3)
+    (l 0) -> 1
+    (l 1) -> 4
+    (l 2) -> none
 
 ---
 
