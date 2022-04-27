@@ -2,6 +2,7 @@
 
 * [: print](#-print)
 * [: not](#-not)
+* [: mod](#-mod)
 * [: +](#-)
 * [: -](#--)
 * [: \*](#--1)
@@ -64,6 +65,20 @@ Examples:
 
     (not true) -> false
     (not false) -> true
+
+---
+
+### : mod
+
+    (mod a:number b:number) -> number
+
+Returns 'a' modulo 'b'.
+
+Examples:
+
+    (mod 11 3) -> 2
+    (mod 9 2) -> 1
+    (mod 8 2) -> 0
 
 ---
 

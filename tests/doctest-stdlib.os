@@ -6,6 +6,12 @@
 	(asserteq (not false) true)
 })
 
+(test-case 'mod {
+	(asserteq (mod 11 3) 2)
+	(asserteq (mod 9 2) 1)
+	(asserteq (mod 8 2) 0)
+})
+
 (test-case '+ {
 	(asserteq (+ 10 20) 30)
 	(asserteq (+ 33) 33)

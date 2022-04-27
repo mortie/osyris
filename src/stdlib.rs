@@ -79,6 +79,25 @@ fn lib_not(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Stac
 }
 
 /*
+@(mod a:number b:number) -> number
+
+Returns 'a' modulo 'b'.
+
+Examples:
+(mod 11 3) -> 2
+(mod 9 2) -> 1
+(mod 8 2) -> 0
+*/
+fn lib_mod(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+
+    let a = args.next_val()?.get_number()?;
+    let b = args.next_val()?.get_number()?;
+    args.done()?;
+    Ok(ValRef::Number(a % b))
+}
+
+/*
 @(+ (val:number)*) -> number
 
 Returns all the numbers added together.
@@ -1397,6 +1416,7 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("print", Rc::new(lib_print));
 
     s.put_func("not", Rc::new(lib_not));
+    s.put_func("mod", Rc::new(lib_mod));
     s.put_func("+", Rc::new(lib_add));
     s.put_func("-", Rc::new(lib_sub));
     s.put_func("*", Rc::new(lib_mul));
