@@ -322,7 +322,7 @@ Defines the given values in the current scope.
 Examples:
 
     (def 'x 10) -> none
-    (== x 10) -> true
+    x -> 10
 
     (def 'x 40 'y 50) -> none
     (+ x y) -> 90
@@ -652,12 +652,10 @@ Returns a new list with new values appended.
 Examples:
 
     (def 'l (list 10))
-    l.0 -> 10
-    l.1 -> none
-    ((list-push l 20) 1) -> 20
+    l -> (list 10)
+    (list-push l 20) -> (list 10 20)
     (mutate 'l list-push 30 40)
-    l.1 -> 30
-    l.2 -> 40
+    l -> (list 10 30 40)
 
 ---
 
@@ -670,12 +668,9 @@ Returns a new list with the last value removed.
 Examples:
 
     (def 'l (list 10 20))
-    l.0 -> 10
-    l.1 -> 20
-    l.2 -> none
+    l -> (list 10 20)
     (mutate 'l list-pop)
-    l.0 -> 10
-    l.1 -> none
+    l -> (list 10)
 
 ---
 
@@ -689,15 +684,11 @@ Returns a new list with some items inserted into the list at the given index.
 Examples:
 
     (def 'l (list 1 2 3))
+    l -> (list 1 2 3)
     (mutate 'l list-insert 0 10)
-    l.0 -> 10
-    l.1 -> 1
-    l.2 -> 2
+    l -> (list 10 1 2 3)
     (mutate 'l list-insert 2 99 100)
-    l.1 -> 1
-    l.2 -> 99
-    l.3 -> 100
-    l.4 -> 2
+    l -> (list 10 1 99 100 2 3)
 
 ---
 
@@ -713,16 +704,14 @@ If no 'end' argument is provided, only 'idx' is removed.
 Examples:
 
     (def 'l (list 1 2 3))
+    l -> (list 1 2 3)
     (mutate 'l list-remove 1)
-    l.0 -> 1
-    l.1 -> 3
-    l.3 -> none
+    l -> (list 1 3)
 
     (def 'l (list 1 2 3 4))
+    l -> (list 1 2 3 4)
     (mutate 'l list-remove 1 3)
-    l.0 -> 1
-    l.1 -> 4
-    l.2 -> none
+    l -> (list 1 4)
 
 ---
 
@@ -735,10 +724,9 @@ Returns a new list where every value is transformed by the transform function.
 Examples:
 
     (def 'l (list 1 2 3))
+    l -> (list 1 2 3)
     (mutate 'l list-map (lambda 'x {[x * 10]}))
-    l.0 -> 10
-    l.1 -> 20
-    l.2 -> 30
+    l -> (list 10 20 30)
 
 ---
 
@@ -788,9 +776,9 @@ Examples:
     (def 'd (dict
         'x 10
         'y 20))
-    d.x -> 10
-    d.y -> 20
-    d.z -> none
+    (d 'x) -> 10
+    (d 'y) -> 20
+    (d 'z) -> none
 
     ; This is an alternate function call syntax
     d.x -> 10
@@ -807,9 +795,9 @@ Returns a new dict with the new keys and values.
 Examples:
 
     (def 'd (dict 'x 10 'y 20))
-    d.x -> 10
+    d -> (dict 'x 10 'y 20)
     (mutate 'd dict-set 'x 30)
-    d.x -> 30
+    d -> (dict 'x 30 'y 20)
 
 ---
 

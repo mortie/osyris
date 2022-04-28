@@ -135,7 +135,7 @@
 
 (test-case 'def {
 	(asserteq (def 'x 10) none)
-	(asserteq (== x 10) true)
+	(asserteq x 10)
 	(asserteq (def 'x 40 'y 50) none)
 	(asserteq (+ x y) 90)
 })
@@ -275,56 +275,44 @@
 
 (test-case 'list-push {
 	(def 'l (list 10))
-	(asserteq l.0 10)
-	(asserteq l.1 none)
-	(asserteq ((list-push l 20) 1) 20)
+	(asserteq l (list 10))
+	(asserteq (list-push l 20) (list 10 20))
 	(mutate 'l list-push 30 40)
-	(asserteq l.1 30)
-	(asserteq l.2 40)
+	(asserteq l (list 10 30 40))
 })
 
 (test-case 'list-pop {
 	(def 'l (list 10 20))
-	(asserteq l.0 10)
-	(asserteq l.1 20)
-	(asserteq l.2 none)
+	(asserteq l (list 10 20))
 	(mutate 'l list-pop)
-	(asserteq l.0 10)
-	(asserteq l.1 none)
+	(asserteq l (list 10))
 })
 
 (test-case 'list-insert {
 	(def 'l (list 1 2 3))
+	(asserteq l (list 1 2 3))
 	(mutate 'l list-insert 0 10)
-	(asserteq l.0 10)
-	(asserteq l.1 1)
-	(asserteq l.2 2)
+	(asserteq l (list 10 1 2 3))
 	(mutate 'l list-insert 2 99 100)
-	(asserteq l.1 1)
-	(asserteq l.2 99)
-	(asserteq l.3 100)
-	(asserteq l.4 2)
+	(asserteq l (list 10 1 99 100 2 3))
 })
 
 (test-case 'list-remove {
 	(def 'l (list 1 2 3))
+	(asserteq l (list 1 2 3))
 	(mutate 'l list-remove 1)
-	(asserteq l.0 1)
-	(asserteq l.1 3)
-	(asserteq l.3 none)
+	(asserteq l (list 1 3))
 	(def 'l (list 1 2 3 4))
+	(asserteq l (list 1 2 3 4))
 	(mutate 'l list-remove 1 3)
-	(asserteq l.0 1)
-	(asserteq l.1 4)
-	(asserteq l.2 none)
+	(asserteq l (list 1 4))
 })
 
 (test-case 'list-map {
 	(def 'l (list 1 2 3))
+	(asserteq l (list 1 2 3))
 	(mutate 'l list-map (lambda 'x {[x * 10]}))
-	(asserteq l.0 10)
-	(asserteq l.1 20)
-	(asserteq l.2 30)
+	(asserteq l (list 10 20 30))
 })
 
 (test-case 'list-last {
@@ -345,18 +333,18 @@
 	(def 'd (dict
 		'x 10
 		'y 20))
-	(asserteq d.x 10)
-	(asserteq d.y 20)
-	(asserteq d.z none)
+	(asserteq (d 'x) 10)
+	(asserteq (d 'y) 20)
+	(asserteq (d 'z) none)
 	(asserteq d.x 10)
 	(asserteq d.y 20)
 })
 
 (test-case 'dict-set {
 	(def 'd (dict 'x 10 'y 20))
-	(asserteq d.x 10)
+	(asserteq d (dict 'x 10 'y 20))
 	(mutate 'd dict-set 'x 30)
-	(asserteq d.x 30)
+	(asserteq d (dict 'x 30 'y 20))
 })
 
 (test-case 'dict-mutate {
