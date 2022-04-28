@@ -52,6 +52,11 @@
 	(asserteq (== "Hello" "Hello" 11) false)
 	(asserteq (== "11" 11) false)
 	(asserteq (==) true)
+	(asserteq (== (list 1 2 3) (list 1 2 3)) true)
+	(asserteq (==
+		(list (list (list 1) (list 2)))
+		(list (list (list 1) (list 2)))) true)
+	(asserteq (== (list 1 2 3) (list 1 2 4)) false)
 })
 
 (test-case '!= {

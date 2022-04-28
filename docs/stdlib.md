@@ -164,6 +164,13 @@ Examples:
     (== "11" 11) -> false
     (==) -> true
 
+    ; Equality is recursive:
+    (== (list 1 2 3) (list 1 2 3)) -> true
+    (==
+        (list (list (list 1) (list 2)))
+        (list (list (list 1) (list 2)))) -> true
+    (== (list 1 2 3) (list 1 2 4)) -> false
+
 ---
 
 ### : !=

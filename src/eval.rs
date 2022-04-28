@@ -110,8 +110,38 @@ impl ValRef {
             (ValRef::Bool(a), ValRef::Bool(b)) => a == b,
             (ValRef::String(a), ValRef::String(b)) => a == b,
             (ValRef::Block(a), ValRef::Block(b)) => Rc::ptr_eq(a, b),
-            (ValRef::List(a), ValRef::List(b)) => Rc::ptr_eq(a, b),
-            (ValRef::Dict(a), ValRef::Dict(b)) => Rc::ptr_eq(a, b),
+            (ValRef::List(a), ValRef::List(b)) => {
+                let (a, b) = (a.borrow(), b.borrow());
+                if a.len() != b.len() {
+                    return false;
+                }
+
+                for idx in 0..a.len() {
+                    if !ValRef::equals(&a[idx], &b[idx]) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            (ValRef::Dict(a), ValRef::Dict(b)) => {
+                let (a, b) = (a.borrow(), b.borrow());
+                if a.len() != b.len() {
+                    return false;
+                }
+
+                for key in a.keys() {
+                    let aval = &a[key];
+                    match b.get(key) {
+                        Some(bval) => if !ValRef::equals(aval, bval) {
+                            return false;
+                        }
+                        None => return false,
+                    }
+                }
+
+                return true
+            }
             (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
             (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
             (ValRef::Binding(a1, a2), ValRef::Binding(b1, b2)) =>
