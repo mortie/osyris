@@ -85,6 +85,7 @@ Returns 'a' modulo 'b'.
 
 Examples:
 (mod 11 3) -> 2
+[12 mod 3] -> 0
 (mod 9 2) -> 1
 (mod 8 2) -> 0
 */
@@ -105,6 +106,7 @@ Returns all the numbers added together.
 Examples:
 (+ 10 20) -> 30
 (+ 33) -> 33
+[10 + 30] -> 40
 (+ 1 2 3 4 5) -> 15
 (+) -> 0
 */
@@ -130,6 +132,7 @@ If there's only one argument, return the negative of that number.
 Examples:
 (- 10) -> -10
 (- 10 3) -> 7
+[10 - 4] -> 6
 (- 10 2 3) -> 5
 (-) -> 0
 */
@@ -155,6 +158,7 @@ Returns all numbers multiplied by each other.
 
 Examples:
 (* 10) -> 10
+[10 * 5] -> 50
 (* 10 3) -> 30
 (* 10 2 3) -> 60
 (*) -> 0
@@ -182,6 +186,7 @@ Examples:
 (/ 10) -> 0.1
 (/ 10 2) -> 5
 (/ 30 3 2) -> 5
+[200 / 10] -> 20
 (/) -> 0
 */
 fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
@@ -514,14 +519,14 @@ Replace the value with the given name with the given value.
 
 Examples:
 (def 'x 100)
-(== x 100) -> true
+x -> 100
 (set 'x 50) -> none
-(== x 50) -> true
+x -> 50
 
 ({
     (set 'x 3)
 })
-(== x 3) -> true
+x -> 3
 */
 fn lib_set(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -560,9 +565,9 @@ the modified value is returned.
 
 Examples:
 (def 'x 10)
-(== x 10) -> true
+x -> 10
 (mutate 'x + 5) -> 15
-(== x 15) -> true
+x -> 15
 */
 fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 2 {
@@ -680,8 +685,8 @@ Examples:
     sum
 }) -> 16
 
-(== sum 16) -> true
-(== index 4) -> true
+sum -> 16
+index -> 4
 
 (while {false}) -> none
 */
@@ -739,7 +744,7 @@ with the bound values in its scope.
 Examples:
 (def 'f (bind 'x 10 'y 20 {
     [x + y]
-})
+}))
 (f) -> 30
 
 ; A more useful example:
@@ -750,20 +755,21 @@ Examples:
         [x + y]
     })
 })
-(def 'f (create-func))
+(def 'f (create-function))
 (f) -> 30
 */
 fn lib_bind(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
 
-    let func = args.next_val()?;
-
     let mut map: HashMap<BString, ValRef> = HashMap::new();
-    while args.has_next() {
+    while args.len() >= 2 {
         let key = args.next_val()?.get_string()?;
         let val = args.next_val()?;
         map.insert(key.as_ref().clone(), val);
     }
+
+    let func = args.next_val()?;
+    args.done()?;
 
     Ok(ValRef::Binding(Rc::new(map), Rc::new(func)))
 }
@@ -947,7 +953,7 @@ the function's return value.
 Examples:
 (def 'make-ten {10})
 (def 'ten (lazy make-ten))
-(== ten 10) -> true
+ten -> 10
 */
 fn lib_lazy(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -970,6 +976,7 @@ Examples:
 }))
 (add 10 20) -> 30
 (add 5 7) -> 12
+[9 add 10] -> 19
 */
 fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1018,10 +1025,10 @@ Examples:
 (l 2) -> none
 
 ; This is an alternate function call syntax
-(== l.0 10) -> true
-(== l.1 20) -> true
-(== l.[0 + 1] 20) -> true
-(== l.(+ 0 1) 20) -> true
+l.0 -> 10
+l.1 -> 20
+l.[0 + 1] -> 20
+l.(+ 0 1) -> 20
 */
 fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     Ok(ValRef::List(Rc::new(RefCell::new(args))))
@@ -1034,12 +1041,12 @@ Returns a new list with new values appended.
 
 Examples:
 (def 'l (list 10))
-(l 0) -> 10
-(l 1) -> none
+l.0 -> 10
+l.1 -> none
 ((list-push l 20) 1) -> 20
 (mutate 'l list-push 30 40)
-(l 1) -> 30
-(l 2) -> 40
+l.1 -> 30
+l.2 -> 40
 */
 fn lib_list_push(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1068,12 +1075,12 @@ Returns a new list with the last value removed.
 
 Examples:
 (def 'l (list 10 20))
-(l 0) -> 10
-(l 1) -> 20
-(l 2) -> none
+l.0 -> 10
+l.1 -> 20
+l.2 -> none
 (mutate 'l list-pop)
-(l 0) -> 10
-(l 1) -> none
+l.0 -> 10
+l.1 -> none
 */
 fn lib_list_pop(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1100,14 +1107,14 @@ Returns a new list with some items inserted into the list at the given index.
 Examples:
 (def 'l (list 1 2 3))
 (mutate 'l list-insert 0 10)
-(l 0) -> 10
-(l 1) -> 1
-(l 2) -> 2
+l.0 -> 10
+l.1 -> 1
+l.2 -> 2
 (mutate 'l list-insert 2 99 100)
-(l 1) -> 1
-(l 2) -> 99
-(l 3) -> 100
-(l 4) -> 2
+l.1 -> 1
+l.2 -> 99
+l.3 -> 100
+l.4 -> 2
 */
 fn lib_list_insert(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1140,15 +1147,15 @@ If no 'end' argument is provided, only 'idx' is removed.
 Examples:
 (def 'l (list 1 2 3))
 (mutate 'l list-remove 1)
-(l 0) -> 1
-(l 1) -> 3
-(l 3) -> none
+l.0 -> 1
+l.1 -> 3
+l.3 -> none
 
 (def 'l (list 1 2 3 4))
 (mutate 'l list-remove 1 3)
-(l 0) -> 1
-(l 1) -> 4
-(l 2) -> none
+l.0 -> 1
+l.1 -> 4
+l.2 -> none
 */
 fn lib_list_remove(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1182,9 +1189,9 @@ Returns a new list where every value is transformed by the transform function.
 Examples:
 (def 'l (list 1 2 3))
 (mutate 'l list-map (lambda 'x {[x * 10]}))
-(l 0) -> 10
-(l 1) -> 20
-(l 2) -> 30
+l.0 -> 10
+l.1 -> 20
+l.2 -> 30
 */
 fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1281,13 +1288,13 @@ Examples:
 (def 'd (dict
     'x 10
     'y 20))
-(d 'x) -> 10
-(d 'y) -> 20
-(d 'z) -> none
+d.x -> 10
+d.y -> 20
+d.z -> none
 
 ; This is an alternate function call syntax
-(== d.x 10) -> true
-(== d.y 20) -> true
+d.x -> 10
+d.y -> 20
 */
 fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1309,9 +1316,9 @@ Returns a new dict with the new keys and values.
 
 Examples:
 (def 'd (dict 'x 10 'y 20))
-(d 'x) -> 10
+d.x -> 10
 (mutate 'd dict-set 'x 30)
-(d 'x) -> 30
+d.x -> 30
 */
 fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     let mut args = args.drain(0..);
@@ -1355,13 +1362,13 @@ Examples:
     [x + 1]
 })
 (def 'd (dict 'x 10 'y 20))
-(d 'x) -> 10
+d.x -> 10
 ((dict-mutate d 'x add-one) 'x) -> 11
 ((dict-mutate d 'x + 1) 'x) -> 11
 
 ; We can use it together with 'mutate'
 (mutate 'd dict-mutate 'x - 3)
-(== d.x 7) -> true
+d.x -> 7
 */
 fn lib_dict_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
     if args.len() < 3 {

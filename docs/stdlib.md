@@ -77,6 +77,7 @@ Returns 'a' modulo 'b'.
 Examples:
 
     (mod 11 3) -> 2
+    [12 mod 3] -> 0
     (mod 9 2) -> 1
     (mod 8 2) -> 0
 
@@ -92,6 +93,7 @@ Examples:
 
     (+ 10 20) -> 30
     (+ 33) -> 33
+    [10 + 30] -> 40
     (+ 1 2 3 4 5) -> 15
     (+) -> 0
 
@@ -108,6 +110,7 @@ Examples:
 
     (- 10) -> -10
     (- 10 3) -> 7
+    [10 - 4] -> 6
     (- 10 2 3) -> 5
     (-) -> 0
 
@@ -122,6 +125,7 @@ Returns all numbers multiplied by each other.
 Examples:
 
     (* 10) -> 10
+    [10 * 5] -> 50
     (* 10 3) -> 30
     (* 10 2 3) -> 60
     (*) -> 0
@@ -140,6 +144,7 @@ Examples:
     (/ 10) -> 0.1
     (/ 10 2) -> 5
     (/ 30 3 2) -> 5
+    [200 / 10] -> 20
     (/) -> 0
 
 ---
@@ -348,14 +353,14 @@ Replace the value with the given name with the given value.
 Examples:
 
     (def 'x 100)
-    (== x 100) -> true
+    x -> 100
     (set 'x 50) -> none
-    (== x 50) -> true
+    x -> 50
 
     ({
         (set 'x 3)
     })
-    (== x 3) -> true
+    x -> 3
 
 ---
 
@@ -379,9 +384,9 @@ the modified value is returned.
 Examples:
 
     (def 'x 10)
-    (== x 10) -> true
+    x -> 10
     (mutate 'x + 5) -> 15
-    (== x 15) -> true
+    x -> 15
 
 ---
 
@@ -447,8 +452,8 @@ Examples:
         sum
     }) -> 16
 
-    (== sum 16) -> true
-    (== index 4) -> true
+    sum -> 16
+    index -> 4
 
     (while {false}) -> none
 
@@ -483,7 +488,7 @@ Examples:
 
     (def 'f (bind 'x 10 'y 20 {
         [x + y]
-    })
+    }))
     (f) -> 30
 
     ; A more useful example:
@@ -494,7 +499,7 @@ Examples:
             [x + y]
         })
     })
-    (def 'f (create-func))
+    (def 'f (create-function))
     (f) -> 30
 
 ---
@@ -583,7 +588,7 @@ Examples:
 
     (def 'make-ten {10})
     (def 'ten (lazy make-ten))
-    (== ten 10) -> true
+    ten -> 10
 
 ---
 
@@ -601,6 +606,7 @@ Examples:
     }))
     (add 10 20) -> 30
     (add 5 7) -> 12
+    [9 add 10] -> 19
 
 ---
 
@@ -623,10 +629,10 @@ Examples:
     (l 2) -> none
 
     ; This is an alternate function call syntax
-    (== l.0 10) -> true
-    (== l.1 20) -> true
-    (== l.[0 + 1] 20) -> true
-    (== l.(+ 0 1) 20) -> true
+    l.0 -> 10
+    l.1 -> 20
+    l.[0 + 1] -> 20
+    l.(+ 0 1) -> 20
 
 ---
 
@@ -639,12 +645,12 @@ Returns a new list with new values appended.
 Examples:
 
     (def 'l (list 10))
-    (l 0) -> 10
-    (l 1) -> none
+    l.0 -> 10
+    l.1 -> none
     ((list-push l 20) 1) -> 20
     (mutate 'l list-push 30 40)
-    (l 1) -> 30
-    (l 2) -> 40
+    l.1 -> 30
+    l.2 -> 40
 
 ---
 
@@ -657,12 +663,12 @@ Returns a new list with the last value removed.
 Examples:
 
     (def 'l (list 10 20))
-    (l 0) -> 10
-    (l 1) -> 20
-    (l 2) -> none
+    l.0 -> 10
+    l.1 -> 20
+    l.2 -> none
     (mutate 'l list-pop)
-    (l 0) -> 10
-    (l 1) -> none
+    l.0 -> 10
+    l.1 -> none
 
 ---
 
@@ -677,14 +683,14 @@ Examples:
 
     (def 'l (list 1 2 3))
     (mutate 'l list-insert 0 10)
-    (l 0) -> 10
-    (l 1) -> 1
-    (l 2) -> 2
+    l.0 -> 10
+    l.1 -> 1
+    l.2 -> 2
     (mutate 'l list-insert 2 99 100)
-    (l 1) -> 1
-    (l 2) -> 99
-    (l 3) -> 100
-    (l 4) -> 2
+    l.1 -> 1
+    l.2 -> 99
+    l.3 -> 100
+    l.4 -> 2
 
 ---
 
@@ -701,15 +707,15 @@ Examples:
 
     (def 'l (list 1 2 3))
     (mutate 'l list-remove 1)
-    (l 0) -> 1
-    (l 1) -> 3
-    (l 3) -> none
+    l.0 -> 1
+    l.1 -> 3
+    l.3 -> none
 
     (def 'l (list 1 2 3 4))
     (mutate 'l list-remove 1 3)
-    (l 0) -> 1
-    (l 1) -> 4
-    (l 2) -> none
+    l.0 -> 1
+    l.1 -> 4
+    l.2 -> none
 
 ---
 
@@ -723,9 +729,9 @@ Examples:
 
     (def 'l (list 1 2 3))
     (mutate 'l list-map (lambda 'x {[x * 10]}))
-    (l 0) -> 10
-    (l 1) -> 20
-    (l 2) -> 30
+    l.0 -> 10
+    l.1 -> 20
+    l.2 -> 30
 
 ---
 
@@ -775,13 +781,13 @@ Examples:
     (def 'd (dict
         'x 10
         'y 20))
-    (d 'x) -> 10
-    (d 'y) -> 20
-    (d 'z) -> none
+    d.x -> 10
+    d.y -> 20
+    d.z -> none
 
     ; This is an alternate function call syntax
-    (== d.x 10) -> true
-    (== d.y 20) -> true
+    d.x -> 10
+    d.y -> 20
 
 ---
 
@@ -794,9 +800,9 @@ Returns a new dict with the new keys and values.
 Examples:
 
     (def 'd (dict 'x 10 'y 20))
-    (d 'x) -> 10
+    d.x -> 10
     (mutate 'd dict-set 'x 30)
-    (d 'x) -> 30
+    d.x -> 30
 
 ---
 
@@ -822,10 +828,10 @@ Examples:
         [x + 1]
     })
     (def 'd (dict 'x 10 'y 20))
-    (d 'x) -> 10
+    d.x -> 10
     ((dict-mutate d 'x add-one) 'x) -> 11
     ((dict-mutate d 'x + 1) 'x) -> 11
 
     ; We can use it together with 'mutate'
     (mutate 'd dict-mutate 'x - 3)
-    (== d.x 7) -> true
+    d.x -> 7

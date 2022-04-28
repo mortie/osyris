@@ -19,65 +19,95 @@ outfile = open(outpath + "~", "w")
 outfile.write("; This test is auto-generated from doctest.py\n")
 outfile.write("; based on: " + inpath + "\n")
 
+class Reader:
+    def __init__(self, content):
+        self.content = content
+        self.idx = 0
+
+    def eof(self):
+        return self.idx >= len(self.content)
+
+    def peek(self, count=1):
+        if self.idx + count >= len(self.content) + 1:
+            return None
+        return self.content[self.idx:self.idx + count]
+
+    def consume(self, count=1):
+        x = self.peek(count)
+        while count > 0:
+            if not self.eof():
+                self.idx += 1
+            count -= 1
+        return x
+
+    def skip_space(self):
+        while not self.eof() and self.peek().isspace():
+            self.consume()
+
+def read_expr(r):
+    r.skip_space()
+    exprstart = r.idx
+    ch = r.peek()
+    if ch == '(' or ch == '[':
+        depth = 1
+        exprstart = r.idx
+        r.consume()
+        while not r.eof() and depth > 0:
+            ch = r.consume()
+            if ch == '(' or ch == '[':
+                depth += 1
+            elif ch == ')' or ch == ']':
+                depth -= 1
+        return r.content[exprstart:r.idx]
+    elif ch == '"':
+        r.consume()
+        while not r.eof():
+            ch = r.consume()
+            if ch == "\"":
+                break
+            elif ch == "\\":
+                r.consume() # Ignore this character
+        return r.content[exprstart:r.idx]
+    else:
+        while not r.eof():
+            ch = r.peek()
+            if ch == "\"":
+                read_expr(r)
+            elif ch == ".":
+                r.consume()
+                read_expr(r)
+            elif ch.isspace():
+                break
+            else:
+                r.consume()
+        return r.content[exprstart:r.idx]
+
+def writexpr(f, expr):
+    for l in expr.split("\n"):
+        f.write("\t" + l.replace("    ", "\t") + "\n")
+
 def gen_test(name, content):
-    # This is pretty terrible code, but I couldn't be bothered to write
-    # a more proper parser.
-    # The basic idea is this:
-    # Find an expression by finding the corresponing ')' to some '('.
-    # If the ')' is followed by a '->', then output:
-    #     (asserteq <expression> <text after '->')
-    # Otherwise, just output the expression verbatim.
-    # If changes are needed in the future, it's probably easier
-    # to rewrite the whole thing than to try to extend the existing code.
+    r = Reader(content)
 
     outfile.write("\n(test-case '" + name + " {\n")
 
-    idx = 0
-    depth = 0
-    exprstart = None
-    while idx < len(content):
-        if content[idx] == '(':
-            if depth == 0:
-                exprstart = idx
-            depth += 1
-            idx += 1
-        elif content[idx] == ')':
-            depth -= 1
+    while not r.eof():
+        r.skip_space()
+        if r.peek() == ';':
+            while r.peek() != '\n':
+                r.consume()
+            continue
 
-            if depth == 0:
-                idx += 1
-                expr = content[exprstart:idx]
-
-                # Skip whitespace
-                while idx < len(content) and content[idx].isspace():
-                    idx += 1
-
-                # If the stuff right after an expression is "->",
-                # this is something we want to assert
-                if content[idx:idx+2] == "->":
-                    # Skip '->' followed by spaces
-                    idx += 2
-                    while idx < len(content) and content[idx] == ' ':
-                        idx += 1
-
-                    # Everything after '->' until the newline is an expression
-                    start = idx
-                    while idx < len(content) and content[idx] != '\n':
-                        idx += 1
-                    compare = content[start:idx]
-
-                    expr = "(asserteq " + expr + " " + compare + ")"
-                    idx += 1
-
-                for l in expr.split("\n"):
-                    outfile.write("\t" + l.replace("    ", "\t") + "\n")
-
-                if content[idx:idx+1] == "\n":
-                    outfile.write("\n")
-            else:
-                idx += 1
+        expr = read_expr(r).strip()
+        if expr == "":
+            continue
+        r.skip_space()
+        if r.peek(2) == '->':
+            r.consume(2)
+            compare = read_expr(r).strip()
+            writexpr(outfile ,"(asserteq " + expr + " " + compare + ")")
         else:
-            idx += 1
+            writexpr(outfile, expr)
 
     outfile.write("})\n")
 

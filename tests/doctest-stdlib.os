@@ -8,6 +8,7 @@
 
 (test-case 'mod {
 	(asserteq (mod 11 3) 2)
+	(asserteq [12 mod 3] 0)
 	(asserteq (mod 9 2) 1)
 	(asserteq (mod 8 2) 0)
 })
@@ -15,6 +16,7 @@
 (test-case '+ {
 	(asserteq (+ 10 20) 30)
 	(asserteq (+ 33) 33)
+	(asserteq [10 + 30] 40)
 	(asserteq (+ 1 2 3 4 5) 15)
 	(asserteq (+) 0)
 })
@@ -22,12 +24,14 @@
 (test-case '- {
 	(asserteq (- 10) -10)
 	(asserteq (- 10 3) 7)
+	(asserteq [10 - 4] 6)
 	(asserteq (- 10 2 3) 5)
 	(asserteq (-) 0)
 })
 
 (test-case '* {
 	(asserteq (* 10) 10)
+	(asserteq [10 * 5] 50)
 	(asserteq (* 10 3) 30)
 	(asserteq (* 10 2 3) 60)
 	(asserteq (*) 0)
@@ -37,6 +41,7 @@
 	(asserteq (/ 10) 0.1)
 	(asserteq (/ 10 2) 5)
 	(asserteq (/ 30 3 2) 5)
+	(asserteq [200 / 10] 20)
 	(asserteq (/) 0)
 })
 
@@ -126,7 +131,6 @@
 (test-case 'def {
 	(asserteq (def 'x 10) none)
 	(asserteq (== x 10) true)
-
 	(asserteq (def 'x 40 'y 50) none)
 	(asserteq (+ x y) 90)
 })
@@ -137,7 +141,6 @@
 	})
 	(asserteq (square 10) 100)
 	(asserteq (square 5) 25)
-
 	(func 'add 'a 'b {
 		[a + b]
 	})
@@ -147,21 +150,20 @@
 
 (test-case 'set {
 	(def 'x 100)
-	(asserteq (== x 100) true)
+	(asserteq x 100)
 	(asserteq (set 'x 50) none)
-	(asserteq (== x 50) true)
-
+	(asserteq x 50)
 	({
 		(set 'x 3)
 	})
-	(asserteq (== x 3) true)
+	(asserteq x 3)
 })
 
 (test-case 'mutate {
 	(def 'x 10)
-	(asserteq (== x 10) true)
+	(asserteq x 10)
 	(asserteq (mutate 'x + 5) 15)
-	(asserteq (== x 15) true)
+	(asserteq x 15)
 })
 
 (test-case 'if {
@@ -180,7 +182,6 @@
 		{[x == 20] "x is 20"}
 		{[x == 10] "x is 10"}
 	) "x is 10")
-
 	(asserteq (match
 		{false 50}
 		{true
@@ -197,10 +198,8 @@
 		(set 'index [index + 1])
 		sum
 	}) 16)
-
-	(asserteq (== sum 16) true)
-	(asserteq (== index 4) true)
-
+	(asserteq sum 16)
+	(asserteq index 4)
 	(asserteq (while {false}) none)
 })
 
@@ -208,11 +207,23 @@
 	(asserteq (do 1 2 3) 3)
 	(asserteq (do (+ 1 3 5) (* 2 4) (- 9 1)) 8)
 	(asserteq (do) none)
-
 	(asserteq (do (def 'x 10) [x + 5]) 15)
 })
 
 (test-case 'bind {
+	(def 'f (bind 'x 10 'y 20 {
+		[x + y]
+	}))
+	(asserteq (f) 30)
+	(func 'create-function {
+		(def 'x 10)
+		(def 'y 20)
+		(bind 'x x 'y y {
+			[x + y]
+		})
+	})
+	(def 'f (create-function))
+	(asserteq (f) 30)
 })
 
 (test-case 'with {
@@ -233,7 +244,7 @@
 (test-case 'lazy {
 	(def 'make-ten {10})
 	(def 'ten (lazy make-ten))
-	(asserteq (== ten 10) true)
+	(asserteq ten 10)
 })
 
 (test-case 'lambda {
@@ -242,75 +253,73 @@
 	}))
 	(asserteq (add 10 20) 30)
 	(asserteq (add 5 7) 12)
+	(asserteq [9 add 10] 19)
 })
 
 (test-case 'list {
 	(asserteq ((list) 0) none)
-
 	(def 'l (list 10 20))
 	(asserteq (l 0) 10)
 	(asserteq (l 1) 20)
 	(asserteq (l 2) none)
-
-	(asserteq (== l.0 10) true)
-	(asserteq (== l.1 20) true)
-	(asserteq (== l.[0 + 1] 20) true)
-	(asserteq (== l.(+ 0 1) 20) true)
+	(asserteq l.0 10)
+	(asserteq l.1 20)
+	(asserteq l.[0 + 1] 20)
+	(asserteq l.(+ 0 1) 20)
 })
 
 (test-case 'list-push {
 	(def 'l (list 10))
-	(asserteq (l 0) 10)
-	(asserteq (l 1) none)
+	(asserteq l.0 10)
+	(asserteq l.1 none)
 	(asserteq ((list-push l 20) 1) 20)
 	(mutate 'l list-push 30 40)
-	(asserteq (l 1) 30)
-	(asserteq (l 2) 40)
+	(asserteq l.1 30)
+	(asserteq l.2 40)
 })
 
 (test-case 'list-pop {
 	(def 'l (list 10 20))
-	(asserteq (l 0) 10)
-	(asserteq (l 1) 20)
-	(asserteq (l 2) none)
+	(asserteq l.0 10)
+	(asserteq l.1 20)
+	(asserteq l.2 none)
 	(mutate 'l list-pop)
-	(asserteq (l 0) 10)
-	(asserteq (l 1) none)
+	(asserteq l.0 10)
+	(asserteq l.1 none)
 })
 
 (test-case 'list-insert {
 	(def 'l (list 1 2 3))
 	(mutate 'l list-insert 0 10)
-	(asserteq (l 0) 10)
-	(asserteq (l 1) 1)
-	(asserteq (l 2) 2)
+	(asserteq l.0 10)
+	(asserteq l.1 1)
+	(asserteq l.2 2)
 	(mutate 'l list-insert 2 99 100)
-	(asserteq (l 1) 1)
-	(asserteq (l 2) 99)
-	(asserteq (l 3) 100)
-	(asserteq (l 4) 2)
+	(asserteq l.1 1)
+	(asserteq l.2 99)
+	(asserteq l.3 100)
+	(asserteq l.4 2)
 })
 
 (test-case 'list-remove {
 	(def 'l (list 1 2 3))
 	(mutate 'l list-remove 1)
-	(asserteq (l 0) 1)
-	(asserteq (l 1) 3)
-	(asserteq (l 3) none)
-
+	(asserteq l.0 1)
+	(asserteq l.1 3)
+	(asserteq l.3 none)
 	(def 'l (list 1 2 3 4))
 	(mutate 'l list-remove 1 3)
-	(asserteq (l 0) 1)
-	(asserteq (l 1) 4)
-	(asserteq (l 2) none)
+	(asserteq l.0 1)
+	(asserteq l.1 4)
+	(asserteq l.2 none)
 })
 
 (test-case 'list-map {
 	(def 'l (list 1 2 3))
 	(mutate 'l list-map (lambda 'x {[x * 10]}))
-	(asserteq (l 0) 10)
-	(asserteq (l 1) 20)
-	(asserteq (l 2) 30)
+	(asserteq l.0 10)
+	(asserteq l.1 20)
+	(asserteq l.2 30)
 })
 
 (test-case 'list-last {
@@ -328,23 +337,21 @@
 
 (test-case 'dict {
 	(asserteq ((dict) 'x) none)
-
 	(def 'd (dict
 		'x 10
 		'y 20))
-	(asserteq (d 'x) 10)
-	(asserteq (d 'y) 20)
-	(asserteq (d 'z) none)
-
-	(asserteq (== d.x 10) true)
-	(asserteq (== d.y 20) true)
+	(asserteq d.x 10)
+	(asserteq d.y 20)
+	(asserteq d.z none)
+	(asserteq d.x 10)
+	(asserteq d.y 20)
 })
 
 (test-case 'dict-set {
 	(def 'd (dict 'x 10 'y 20))
-	(asserteq (d 'x) 10)
+	(asserteq d.x 10)
 	(mutate 'd dict-set 'x 30)
-	(asserteq (d 'x) 30)
+	(asserteq d.x 30)
 })
 
 (test-case 'dict-mutate {
@@ -352,10 +359,9 @@
 		[x + 1]
 	})
 	(def 'd (dict 'x 10 'y 20))
-	(asserteq (d 'x) 10)
+	(asserteq d.x 10)
 	(asserteq ((dict-mutate d 'x add-one) 'x) 11)
 	(asserteq ((dict-mutate d 'x + 1) 'x) 11)
-
 	(mutate 'd dict-mutate 'x - 3)
-	(asserteq (== d.x 7) true)
+	(asserteq d.x 7)
 })
