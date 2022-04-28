@@ -328,6 +328,11 @@
 	})) 6)
 })
 
+(test-case 'list-len {
+	(asserteq (list-len (list)) 0)
+	(asserteq (list-len (list 1 2 3)) 3)
+})
+
 (test-case 'dict {
 	(asserteq ((dict) 'x) none)
 	(def 'd (dict

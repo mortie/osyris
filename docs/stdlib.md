@@ -41,6 +41,7 @@
 * [: list-map](#-list-map)
 * [: list-last](#-list-last)
 * [: list-for](#-list-for)
+* [: list-len](#-list-len)
 * [: dict](#-dict)
 * [: dict-set](#-dict-set)
 * [: dict-mutate](#-dict-mutate)
@@ -757,6 +758,19 @@ Examples:
     (list-for l (lambda 'el {
         (mutate 'sum + el)
     })) -> 6
+
+---
+
+### : list-len
+
+    (list-len l:list) -> number
+
+Get the length of a list.
+
+Examples:
+
+    (list-len (list)) -> 0
+    (list-len (list 1 2 3)) -> 3
 
 ---
 

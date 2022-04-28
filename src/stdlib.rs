@@ -1270,6 +1270,23 @@ fn lib_list_for(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<Val
 }
 
 /*
+@(list-len l:list) -> number
+
+Get the length of a list.
+
+Examples:
+(list-len (list)) -> 0
+(list-len (list 1 2 3)) -> 3
+*/
+fn lib_list_len(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+    let lst = args.next_val()?.get_list()?;
+    args.done()?;
+    let lst = lst.borrow();
+    Ok(ValRef::Number(lst.len() as f64))
+}
+
+/*
 @(dict (key:string value:any)*) -> dict
 
 Create a dict.
@@ -1464,6 +1481,7 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("list-map", Rc::new(lib_list_map));
     s.put_func("list-last", Rc::new(lib_list_last));
     s.put_func("list-for", Rc::new(lib_list_for));
+    s.put_func("list-len", Rc::new(lib_list_len));
 
     s.put_func("dict", Rc::new(lib_dict));
     s.put_func("dict-set", Rc::new(lib_dict_set));
