@@ -20,7 +20,7 @@ fn main() {
     let mut path: Option<BString> = None;
     let mut print_ast = false;
     let mut dashes = false;
-    while let Some(arg) = args.next() {
+    for arg in args {
         if !dashes && (arg == "--help" || arg == "-h") {
             usage(&argv0);
             return;
@@ -76,14 +76,9 @@ fn main() {
 
         if print_ast {
             println!("{}", expr);
-        } else {
-            match eval::eval(&expr, &scope) {
-                Err(err) => {
-                    eprintln!("Error: {}", err);
-                    process::exit(1);
-                }
-                _ => (),
-            }
+        } else if let Err(err) = eval::eval(&expr, &scope) {
+            eprintln!("Error: {}", err);
+            process::exit(1);
         }
     }
 }

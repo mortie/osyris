@@ -15,7 +15,7 @@ use std::iter;
 Print the arguments to 'stdout', separated by a space.
 */
 fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    let mut args = args.drain(0..);
+    let args = args.drain(0..);
 
     let stdout = match scope.borrow().lookup(&BString::from_str("stdout")) {
         Some(stdout) => match stdout {
@@ -37,7 +37,7 @@ fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
 
     let space = ValRef::String(Rc::new(BString::from_str(" ")));
     let mut first = true;
-    while let Some(arg) = args.next() {
+    for arg in args {
         if !first {
             match out.write(&space) {
                 Ok(_) => (),
@@ -111,13 +111,13 @@ Examples:
 (+) -> 0
 */
 fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
+    if args.is_empty() {
         return Ok(ValRef::Number(0.0));
     }
 
     let mut num = args[0].to_num();
-    for idx in 1..args.len() {
-        num += &args[idx].to_num();
+    for item in args.into_iter().skip(1) {
+        num += item.to_num();
     }
 
     Ok(ValRef::Number(num))
@@ -137,15 +137,15 @@ Examples:
 (-) -> 0
 */
 fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
+    if args.is_empty() {
         return Ok(ValRef::Number(0.0));
     } else if args.len() == 1 {
         return Ok(ValRef::Number(-args[0].to_num()));
     }
 
     let mut num = args[0].to_num();
-    for idx in 1..args.len() {
-        num -= args[idx].to_num();
+    for item in args.into_iter().skip(1) {
+        num -= item.to_num();
     }
 
     Ok(ValRef::Number(num))
@@ -164,13 +164,13 @@ Examples:
 (*) -> 0
 */
 fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
+    if args.is_empty() {
         return Ok(ValRef::Number(0.0));
     }
 
     let mut num = args[0].to_num();
-    for idx in 1..args.len() {
-        num *= args[idx].to_num();
+    for item in args.into_iter().skip(1) {
+        num *= item.to_num();
     }
 
     Ok(ValRef::Number(num))
@@ -190,15 +190,15 @@ Examples:
 (/) -> 0
 */
 fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
+    if args.is_empty() {
         return Ok(ValRef::Number(0.0));
     } else if args.len() == 1 {
         return Ok(ValRef::Number(1.0 / args[0].to_num()));
     }
 
     let mut num = args[0].to_num();
-    for idx in 1..args.len() {
-        num /= args[idx].to_num();
+    for item in args.into_iter().skip(1) {
+        num /= item.to_num();
     }
 
     Ok(ValRef::Number(num))
@@ -274,7 +274,7 @@ Examples:
 (<=) -> true
 */
 fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() == 0 {
+    if args.is_empty() {
         return Ok(ValRef::Bool(true));
     }
 
@@ -302,7 +302,7 @@ Examples:
 (<) -> true
 */
 fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() == 0 {
+    if args.is_empty() {
         return Ok(ValRef::Bool(true));
     }
 
@@ -330,7 +330,7 @@ Examples:
 (>=) -> true
 */
 fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() == 0 {
+    if args.is_empty() {
         return Ok(ValRef::Bool(true));
     }
 
@@ -358,7 +358,7 @@ Examples:
 (>) -> true
 */
 fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() == 0 {
+    if args.is_empty() {
         return Ok(ValRef::Bool(true));
     }
 
@@ -385,8 +385,8 @@ Examples:
 (||) -> false
 */
 fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    for idx in 0..args.len() {
-        if args[idx].to_bool() {
+    for item in args {
+        if item.to_bool() {
             return Ok(ValRef::Bool(true));
         }
     }
@@ -409,8 +409,8 @@ Examples:
 (&&) -> true
 */
 fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    for idx in 0..args.len() {
-        if !args[idx].to_bool() {
+    for item in args {
+        if !item.to_bool() {
             return Ok(ValRef::Bool(false));
         }
     }
@@ -491,7 +491,7 @@ fn lib_func(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
 
     let mut argnames: Vec<BString> = Vec::new();
     let mut block = None;
-    while let Some(arg) = args.next() {
+    for arg in args.by_ref() {
         match arg {
             ValRef::String(s) => argnames.push(s.as_ref().clone()),
             ValRef::Block(b) => {
@@ -514,7 +514,7 @@ fn lib_func(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
         args: argnames,
         body: block,
     }));
-    scope.borrow_mut().insert(name.as_ref().clone(), val.clone());
+    scope.borrow_mut().insert(name.as_ref().clone(), val);
 
     Ok(ValRef::None)
 }
@@ -710,13 +710,10 @@ fn lib_while(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
             return Ok(retval);
         }
 
-        match &body {
-            Some(body) => {
-                drop(retval);
-                retval = eval::call(body, vec![], scope)?;
-            }
-            _ => (),
-        };
+        if let Some(body) = &body {
+            drop(retval);
+            retval = eval::call(body, vec![], scope)?;
+        }
     }
 }
 
@@ -884,7 +881,7 @@ fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     let res = port.borrow_mut().seek(pos);
     match res {
         Ok(_) => Ok(ValRef::None),
-        Err(err) => Err(StackTrace::from_string(err.to_string())),
+        Err(err) => Err(StackTrace::from_string(err)),
     }
 }
 
@@ -898,19 +895,19 @@ Create an error. An error contains a value:
   and the value is the resulting string.
 */
 fn lib_error(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() == 0 {
+    if args.is_empty() {
         Err(StackTrace::from_val(ValRef::None))
     } else if args.len() == 1 {
         Err(StackTrace::from_val(args[0].clone()))
     } else {
         let mut vec = Vec::new();
 
-        for idx in 0..args.len() {
+        for (idx, item) in args.iter().enumerate() {
             if idx != 0 {
                 vec.extend_from_slice(b" ")
             }
 
-            match &args[idx] {
+            match &item {
                 ValRef::String(bs) => vec.extend_from_slice(bs.as_bytes()),
                 arg => vec.extend_from_slice(format!("{}", arg).as_bytes()),
             }
@@ -990,7 +987,7 @@ fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
 
     let mut argnames: Vec<BString> = Vec::new();
     let mut block = None;
-    while let Some(arg) = args.next() {
+    for arg in args.by_ref() {
         match arg {
             ValRef::String(s) => argnames.push(s.as_ref().clone()),
             ValRef::Block(b) => {
@@ -1065,7 +1062,7 @@ fn lib_list_push(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef
     };
 
     let mut lstmut = lst.borrow_mut();
-    while let Some(val) = args.next() {
+    for val in args {
         lstmut.push(val);
     }
 
@@ -1411,7 +1408,7 @@ fn lib_dict_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<
     let func = mem::replace(&mut args[0], val);
 
     let res = eval::call(&func, args, scope)?;
-    dict.borrow_mut().insert(name.as_ref().clone(), res.clone());
+    dict.borrow_mut().insert(name.as_ref().clone(), res);
 
     Ok(ValRef::Dict(dict))
 }

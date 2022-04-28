@@ -137,7 +137,7 @@ impl PortVal for ChildProc {
 }
 
 pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() < 1 {
+    if args.is_empty() {
         return Err(StackTrace::from_str("'exec' requires at least 1 argument"));
     }
 
@@ -152,8 +152,8 @@ pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 
     let mut cmd = Command::new(name.to_os_str());
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
-    for idx in 1..args.len() {
-        match &args[idx] {
+    for item in args.into_iter().skip(1) {
+        match item {
             ValRef::String(s) => cmd.arg(s.to_os_str()),
             _ => {
                 return Err(StackTrace::from_str(

@@ -11,102 +11,98 @@ where
     match val {
         ValRef::None => {
             name = parent;
-            write!(w, "{} [label=\"None\" shape=box]\n", name)?;
+            writeln!(w, "{} [label=\"None\" shape=box]", name)?;
         }
         ValRef::Number(num) => {
             name = parent;
-            write!(w, "{} [label=\"{}\" shape=box]\n", name, num)?;
+            writeln!(w, "{} [label=\"{}\" shape=box]", name, num)?;
         }
         ValRef::Bool(b) => {
             name = parent;
-            write!(w, "{} [label=\"{}\" shape=box]\n", name, b)?;
+            writeln!(w, "{} [label=\"{}\" shape=box]", name, b)?;
         }
         ValRef::String(s) => {
             name = format!("v{:p}", s.as_ref());
-            write!(
+            writeln!(
                 w,
-                "{} [label=\"string rc={}\"]\n",
+                "{} [label=\"string rc={}\"]",
                 name,
                 Rc::strong_count(s)
             )?;
-            write!(w, "{}c [label={:?} shape=box]\n", name, s.as_ref())?;
-            write!(w, "{} -> {}c [label=\"::content\"]\n", name, name)?;
+            writeln!(w, "{}c [label={:?} shape=box]", name, s.as_ref())?;
+            writeln!(w, "{} -> {}c [label=\"::content\"]", name, name)?;
         }
         ValRef::Block(b) => {
             name = format!("v{:p}", b.as_ref());
-            write!(w, "{} [label=\"block rc={}\"]\n", name, Rc::strong_count(b))?;
+            writeln!(w, "{} [label=\"block rc={}\"]", name, Rc::strong_count(b))?;
         }
         ValRef::List(l) => {
             name = format!("v{:p}", l.as_ref());
-            write!(w, "{} [label=\"list rc={}\"]\n", name, Rc::strong_count(l))?;
+            writeln!(w, "{} [label=\"list rc={}\"]", name, Rc::strong_count(l))?;
 
             let vec = l.borrow();
             for idx in 0..vec.len() {
                 let n = write_val(w, &vec[idx], format!("{}v{}", name, idx))?;
-                write!(w, "{} -> {} [label=\"[{}]\"]\n", name, n, idx)?;
+                writeln!(w, "{} -> {} [label=\"[{}]\"]", name, n, idx)?;
             }
         }
         ValRef::Dict(d) => {
             name = format!("v{:p}", d.as_ref());
-            write!(w, "{} [label=\"dict rc={}\"]\n", name, Rc::strong_count(d))?;
+            writeln!(w, "{} [label=\"dict rc={}\"]", name, Rc::strong_count(d))?;
 
             let map = d.borrow();
-            let mut idx = 0;
-            for (key, val) in map.iter() {
-                let n = write_val(w, &val, format!("{}v{}", name, idx))?;
-                write!(w, "{} -> {} [label={:?}]\n", name, n, key)?;
-                idx += 1;
+            for (idx, (key, val)) in map.iter().enumerate() {
+                let n = write_val(w, val, format!("{}v{}", name, idx))?;
+                writeln!(w, "{} -> {} [label={:?}]", name, n, key)?;
             }
         }
         ValRef::Func(f) => {
             name = format!("v{:p}", f.as_ref());
-            write!(w, "{} [label=\"func rc={}\"]\n", name, Rc::strong_count(f))?;
+            writeln!(w, "{} [label=\"func rc={}\"]", name, Rc::strong_count(f))?;
         }
         ValRef::Lambda(l) => {
             name = format!("v{:p}", l.as_ref());
-            write!(
+            writeln!(
                 w,
-                "{} [label=\"lambda rc={}\"]\n",
+                "{} [label=\"lambda rc={}\"]",
                 name,
                 Rc::strong_count(l)
             )?;
         }
         ValRef::Binding(b, func) => {
-            name = format!("{}", parent);
-            write!(w, "{} [label=\"binding\"]\n", name)?;
+            name = parent;
+            writeln!(w, "{} [label=\"binding\"]", name)?;
 
-            let mut idx = 0;
-            for (key, val) in b.as_ref() {
-                let n = write_val(w, &val, format!("{}v{}", name, idx))?;
-                write!(w, "{} -> {} [label={:?}]\n", name, n, key)?;
-                idx += 1;
+            for (idx, (key, val)) in b.as_ref().iter().enumerate() {
+                let n = write_val(w, val, format!("{}v{}", name, idx))?;
+                writeln!(w, "{} -> {} [label={:?}]", name, n, key)?;
             }
 
             let n = write_val(w, func.as_ref(), format!("{}f", name))?;
-            write!(w, "{} -> {} [label=\"::func\"]\n", name, n)?;
+            writeln!(w, "{} -> {} [label=\"::func\"]", name, n)?;
         }
         ValRef::Lazy(l) => {
             name = format!("v{:p}", l.as_ref());
-            write!(w, "{} [label=\"lazy rc={}\"]\n", name, Rc::strong_count(l))?;
+            writeln!(w, "{} [label=\"lazy rc={}\"]", name, Rc::strong_count(l))?;
         }
         ValRef::ProtectedLazy(p) => {
             name = format!("v{:p}", p.as_ref());
             let lname = write_val(w, p.as_ref(), format!("{}l", name))?;
-            write!(w, "{} [label=\"protected lazy\"]\n", name)?;
-            write!(w, "{} -> {} [label=\"::lazy\"]\n", name, lname)?;
+            writeln!(w, "{} [label=\"protected lazy\"]", name)?;
+            writeln!(w, "{} -> {} [label=\"::lazy\"]", name, lname)?;
         }
         ValRef::Native(n) => {
             name = format!("v{:p}", n.as_ref());
-            write!(
+            writeln!(
                 w,
-                "{} [label=\"native rc={}\"]\n",
+                "{} [label=\"native rc={}\"]",
                 name,
                 Rc::strong_count(n)
             )?;
         }
         ValRef::Port(p) => {
             name = format!("v{:p}", p.as_ref());
-            write!(w, "{} [label=\"port rc={}\"]\n", name, Rc::strong_count(p))?;
+            writeln!(w, "{} [label=\"port rc={}\"]", name, Rc::strong_count(p))?;
         }
     }
 
@@ -117,20 +113,18 @@ fn write_scope<W>(w: &mut W, scope: &Rc<RefCell<Scope>>) -> Result<(), io::Error
 where
     W: io::Write,
 {
-    write!(w, "s{:p} [label=\"scope\"]\n", scope.as_ref())?;
+    writeln!(w, "s{:p} [label=\"scope\"]", scope.as_ref())?;
 
     let s = scope.borrow();
-    let mut idx = 0;
-    for (key, val) in &s.map {
+    for (idx, (key, val)) in s.map.iter().enumerate() {
         let name = write_val(w, val, format!("s{:p}v{}", scope.as_ref(), idx))?;
-        write!(
+        writeln!(
             w,
-            "s{:p} -> {} [label={:?} type=s]\n",
+            "s{:p} -> {} [label={:?} type=s]",
             scope.as_ref(),
             name,
             key
         )?;
-        idx += 1;
     }
 
     match &scope.borrow().parent {
@@ -138,9 +132,9 @@ where
         Some(parent) => {
             if parent.borrow().parent.is_some() {
                 write_scope(w, parent)?;
-                write!(
+                writeln!(
                     w,
-                    "s{:p} -> s{:p} [label=\"::parent\"]\n",
+                    "s{:p} -> s{:p} [label=\"::parent\"]",
                     scope.as_ref(),
                     parent.as_ref()
                 )?;
@@ -155,9 +149,9 @@ pub fn write_dot<W>(w: &mut W, scope: &Rc<RefCell<Scope>>) -> Result<(), io::Err
 where
     W: io::Write,
 {
-    write!(w, "digraph d {{\n")?;
+    writeln!(w, "digraph d {{")?;
     write_scope(w, scope)?;
-    write!(w, "}}\n")
+    writeln!(w, "}}")
 }
 
 fn lib_print_scope_dot(_: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {

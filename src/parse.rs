@@ -37,7 +37,7 @@ impl<'a> Reader<'a> {
     }
 
     fn eof(&self) -> bool {
-        return self.idx == self.string.len();
+        self.idx == self.string.len()
     }
 
     fn consume(&mut self) {
@@ -72,21 +72,21 @@ impl<'a> Reader<'a> {
 }
 
 fn is_space(ch: u8) -> bool {
-    return ch == b' ' || ch == b'\t' || ch == b'\n';
+    ch == b' ' || ch == b'\t' || ch == b'\n'
 }
 
 fn is_separator(ch: u8) -> bool {
-    return is_space(ch)
+    is_space(ch)
         || ch == b'('
         || ch == b')'
         || ch == b'{'
         || ch == b'}'
         || ch == b'['
         || ch == b']'
-        || ch == b'.';
+        || ch == b'.'
 }
 
-fn skip_space<'a>(r: &mut Reader<'a>) {
+fn skip_space(r: &mut Reader<'_>) {
     while !r.eof() {
         let ch = r.peek();
         if is_space(ch) {
@@ -107,7 +107,7 @@ fn skip_space<'a>(r: &mut Reader<'a>) {
     }
 }
 
-fn read_name<'a>(r: &mut Reader<'a>) -> Result<BString, ParseError> {
+fn read_name(r: &mut Reader<'_>) -> Result<BString, ParseError> {
     let start = r.idx;
     while !r.eof() && !is_separator(r.peek()) {
         r.consume();
@@ -128,7 +128,7 @@ fn read_name<'a>(r: &mut Reader<'a>) -> Result<BString, ParseError> {
     Ok(BString::from_str(s))
 }
 
-fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_string(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '"'
 
     let mut buf: Vec<u8> = Vec::new();
@@ -171,11 +171,11 @@ fn parse_string<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
 
 fn read_digit(ch: u8, base: u8) -> Result<u8, ()> {
     let num;
-    if ch >= b'0' && ch <= b'9' {
+    if (b'0'..=b'9').contains(&ch) {
         num = ch - b'0';
-    } else if ch >= b'a' && ch <= b'z' {
+    } else if (b'a'..=b'z').contains(&ch) {
         num = ch - b'a' + 10;
-    } else if ch >= b'A' && ch <= b'Z' {
+    } else if (b'A'..=b'Z').contains(&ch) {
         num = ch - b'A' + 10;
     } else {
         return Err(());
@@ -188,7 +188,7 @@ fn read_digit(ch: u8, base: u8) -> Result<u8, ()> {
     Ok(num)
 }
 
-fn read_int<'a>(r: &mut Reader<'a>, base: u8) -> (u64, u64) {
+fn read_int(r: &mut Reader<'_>, base: u8) -> (u64, u64) {
     let mut int: u64 = 0;
     let mut div: u64 = 1;
     while !r.eof() {
@@ -203,10 +203,10 @@ fn read_int<'a>(r: &mut Reader<'a>, base: u8) -> (u64, u64) {
         r.consume();
     }
 
-    return (int, div);
+    (int, div)
 }
 
-fn read_number<'a>(r: &mut Reader<'a>) -> Result<f64, ParseError> {
+fn read_number(r: &mut Reader<'_>) -> Result<f64, ParseError> {
     let mut base = 10u8;
     let (mut integral, _) = read_int(r, 10);
     let mut decimal = 0.0;
@@ -237,11 +237,11 @@ fn read_number<'a>(r: &mut Reader<'a>) -> Result<f64, ParseError> {
     Ok(integral as f64 + decimal)
 }
 
-fn parse_number<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_number(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     Ok(ast::Expression::Number(read_number(r)?))
 }
 
-fn parse_list<'a>(r: &mut Reader<'a>, closer: u8) -> Result<Vec<ast::Expression>, ParseError> {
+fn parse_list(r: &mut Reader<'_>, closer: u8) -> Result<Vec<ast::Expression>, ParseError> {
     r.consume(); // Opener
 
     let mut exprs: Vec<ast::Expression> = Vec::new();
@@ -264,7 +264,7 @@ fn parse_list<'a>(r: &mut Reader<'a>, closer: u8) -> Result<Vec<ast::Expression>
     Ok(exprs)
 }
 
-fn parse_infix<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_infix(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '['
 
     let mut lhs = match parse(r)? {
@@ -296,7 +296,7 @@ fn parse_infix<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     Ok(lhs)
 }
 
-fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_quote(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '\''
     if r.peek() == b'(' {
         Ok(ast::Expression::Block(Rc::new(parse_list(r, b')')?)))
@@ -305,10 +305,10 @@ fn parse_quote<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     }
 }
 
-fn parse_dash<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_dash(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     r.consume(); // '-'
     let ch = r.peek();
-    if ch >= b'0' && ch <= b'9' {
+    if (b'0'..=b'9').contains(&ch) {
         Ok(ast::Expression::Number(-read_number(r)?))
     } else if is_separator(ch) {
         Ok(ast::Expression::Lookup(BString::from_str("-")))
@@ -320,19 +320,19 @@ fn parse_dash<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
     }
 }
 
-fn parse_braced<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_braced(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     Ok(ast::Expression::Block(Rc::new(parse_list(r, b'}')?)))
 }
 
-fn parse_call<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_call(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     Ok(ast::Expression::Call(parse_list(r, b')')?, r.loc()))
 }
 
-fn parse_lookup<'a>(r: &mut Reader<'a>) -> Result<ast::Expression, ParseError> {
+fn parse_lookup(r: &mut Reader<'_>) -> Result<ast::Expression, ParseError> {
     Ok(ast::Expression::Lookup(read_name(r)?))
 }
 
-pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseError> {
+pub fn parse(r: &mut Reader<'_>) -> Result<Option<ast::Expression>, ParseError> {
     skip_space(r);
 
     if r.eof() {
@@ -342,7 +342,7 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
     let ch = r.peek();
     let mut base = if ch == b'"' {
         parse_string(r)?
-    } else if ch >= b'0' && ch <= b'9' {
+    } else if (b'0'..=b'9').contains(&ch) {
         parse_number(r)?
     } else if ch == b'-' {
         parse_dash(r)?
@@ -369,7 +369,7 @@ pub fn parse<'a>(r: &mut Reader<'a>) -> Result<Option<ast::Expression>, ParseErr
             r.consume();
             skip_space(r);
             let ch = r.peek();
-            if ch >= b'0' && ch <= b'9' {
+            if (b'0'..=b'9').contains(&ch) {
                 let num = parse_number(r)?;
                 base = ast::Expression::Call(vec![base, num], r.loc());
             } else if ch == b'[' {
