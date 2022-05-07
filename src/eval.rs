@@ -5,6 +5,7 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt;
 use std::io;
 use std::rc::Rc;
@@ -47,19 +48,19 @@ pub struct LambdaVal {
 
 pub trait PortVal {
     fn read(&mut self) -> Result<ValRef, String> {
-        return Err("This port doesn't support reading".to_string());
+        Err("This port doesn't support reading".to_string())
     }
 
     fn read_chunk(&mut self, _: usize) -> Result<ValRef, String> {
-        return Err("This port doesn't support reading chunks".to_string());
+        Err("This port doesn't support reading chunks".to_string())
     }
 
     fn write(&mut self, _: &ValRef) -> Result<(), String> {
-        return Err("This port doesn't support writing".to_string());
+        Err("This port doesn't support writing".to_string())
     }
 
     fn seek(&mut self, _: io::SeekFrom) -> Result<(), String> {
-        return Err("This port doesn't support seeking".to_string());
+        Err("This port doesn't support seeking".to_string())
     }
 }
 
@@ -82,11 +83,7 @@ pub enum ValRef {
 
 impl ValRef {
     pub fn to_bool(&self) -> bool {
-        match self {
-            ValRef::Bool(false) => false,
-            ValRef::None => false,
-            _ => true,
-        }
+        !matches!(self, ValRef::Bool(false) | ValRef::None)
     }
 
     pub fn to_num(&self) -> f64 {
@@ -114,6 +111,7 @@ impl ValRef {
     }
 
     pub fn equals(a: &Self, b: &Self) -> bool {
+        #[allow(clippy::vtable_address_comparisons)]
         match (a, b) {
             (ValRef::None, ValRef::None) => true,
             (ValRef::Number(a), ValRef::Number(b)) => a == b,
@@ -132,7 +130,7 @@ impl ValRef {
                     }
                 }
 
-                return true;
+                true
             }
             (ValRef::Dict(a), ValRef::Dict(b)) => {
                 let (a, b) = (a.borrow(), b.borrow());
@@ -150,7 +148,7 @@ impl ValRef {
                     }
                 }
 
-                return true
+                true
             }
             (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
             (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
@@ -296,6 +294,7 @@ pub struct StackTrace {
 }
 
 impl StackTrace {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(message: &str) -> Self {
         Self {
             message: ValRef::String(Rc::new(BString::from_str(message))),
@@ -390,8 +389,8 @@ impl Scope {
     }
 
     pub fn replace(&mut self, name: BString, val: ValRef) -> bool {
-        if self.map.contains_key(&name) {
-            self.map.insert(name, val);
+        if let Entry::Occupied(mut e) = self.map.entry(name.clone()) {
+            e.insert(val);
             true
         } else if let Some(parent) = &self.parent {
             parent.borrow_mut().replace(name, val)
@@ -417,6 +416,12 @@ impl Scope {
 
     pub fn put_func(&mut self, name: &str, func: Rc<FuncVal>) {
         self.map.insert(BString::from_str(name), ValRef::Func(func));
+    }
+}
+
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -504,14 +509,14 @@ pub fn eval_call(
     exprs: &Vec<ast::Expression>,
     scope: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
-    if exprs.len() < 1 {
-        return Err(StackTrace::from_str("Call list has no elements".into()));
+    if exprs.is_empty() {
+        return Err(StackTrace::from_str("Call list has no elements"));
     }
 
     let mut args: Vec<ValRef> = Vec::new();
     args.reserve(exprs.len() - 1);
-    for idx in 1..exprs.len() {
-        args.push(eval(&exprs[idx], scope)?);
+    for item in exprs.iter().skip(1) {
+        args.push(eval(item, scope)?);
     }
 
     let func = eval(&exprs[0], scope)?;
@@ -525,7 +530,7 @@ fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
             eval_multiple(&l.body[..], &subscope)
         }
-        ValRef::Block(exprs) => eval_multiple(exprs, &scope),
+        ValRef::Block(exprs) => eval_multiple(exprs, scope),
         _ => Ok(lazy.clone()),
     }
 }
