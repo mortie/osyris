@@ -29,6 +29,7 @@
 * [: read](#-read)
 * [: write](#-write)
 * [: seek](#-seek)
+* [: string](#-string)
 * [: error](#-error)
 * [: try](#-try)
 * [: lazy](#-lazy)
@@ -550,6 +551,23 @@ Seek a port. 'from' can be:
 * set: Seek from the beginning (default)
 * end: Seek from the end
 * current: Seek from the current position
+
+---
+
+### : string
+
+    (string (value:any)*) -> string
+
+Create a string from a value. If there are multiple values,
+they will be converted to strings and concatenated together.
+
+Examples:
+
+    (string) -> ""
+    (string "Hello") -> "Hello"
+    (string 10) -> "10"
+    (string "There are " 10 " trees") -> "There are 10 trees"
+    (string [3 + 5] " things") -> "8 things"
 
 ---
 

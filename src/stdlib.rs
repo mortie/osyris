@@ -889,6 +889,41 @@ fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 }
 
 /*
+@(string (value:any)*) -> string
+
+Create a string from a value. If there are multiple values,
+they will be converted to strings and concatenated together.
+
+Examples:
+(string) -> ""
+(string "Hello") -> "Hello"
+(string 10) -> "10"
+(string "There are " 10 " trees") -> "There are 10 trees"
+(string [3 + 5] " things") -> "8 things"
+*/
+fn lib_string(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.len() == 0 {
+        return Ok(ValRef::String(Rc::new(BString::from_str(""))));
+    }
+
+    if args.len() == 1 && matches!(args[0], ValRef::String(..)) {
+        return Ok(args.pop().unwrap())
+    }
+
+    let args = args.drain(0..);
+    let mut buf: Vec<u8> = Vec::new();
+    for arg in args {
+        if let ValRef::String(s) = arg {
+            buf.extend_from_slice(s.as_ref().as_bytes());
+        } else {
+            buf.extend_from_slice(arg.to_bstring().as_bytes());
+        }
+    }
+
+    Ok(ValRef::String(Rc::new(BString::from_vec(buf))))
+}
+
+/*
 @(error (message:any)*) -> error
 
 Create an error. An error contains a value:
@@ -1465,6 +1500,8 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("read", Rc::new(lib_read));
     s.put_func("write", Rc::new(lib_write));
     s.put_func("seek", Rc::new(lib_seek));
+
+    s.put_func("string", Rc::new(lib_string));
 
     s.put_func("error", Rc::new(lib_error));
     s.put_func("try", Rc::new(lib_try));

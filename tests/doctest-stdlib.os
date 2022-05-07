@@ -237,6 +237,14 @@
 	}) 325)
 })
 
+(test-case 'string {
+	(asserteq (string) "")
+	(asserteq (string "Hello") "Hello")
+	(asserteq (string 10) "10")
+	(asserteq (string "There are " 10 " trees") "There are 10 trees")
+	(asserteq (string [3 + 5] " things") "8 things")
+})
+
 (test-case 'try {
 	(asserteq (try {
 		(error "Oh no")

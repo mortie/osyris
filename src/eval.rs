@@ -103,6 +103,16 @@ impl ValRef {
         }
     }
 
+    pub fn to_bstring(&self) -> BString {
+        // TODO: Implement display in terms of to_bstring
+        // instead of the other way around maybe?
+        if let ValRef::String(s) = self {
+            s.as_ref().clone()
+        } else {
+            BString::from_string(format!("{}", self))
+        }
+    }
+
     pub fn equals(a: &Self, b: &Self) -> bool {
         match (a, b) {
             (ValRef::None, ValRef::None) => true,
