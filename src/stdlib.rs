@@ -899,7 +899,7 @@ Examples:
 (string [3 + 5] " things") -> "8 things"
 */
 fn lib_string(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.len() == 0 {
+    if args.is_empty() {
         return Ok(ValRef::String(Rc::new(BString::from_str(""))));
     }
 

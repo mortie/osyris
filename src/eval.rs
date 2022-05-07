@@ -506,7 +506,7 @@ pub fn call(
 }
 
 pub fn eval_call(
-    exprs: &Vec<ast::Expression>,
+    exprs: &[ast::Expression],
     scope: &Rc<RefCell<Scope>>,
 ) -> Result<ValRef, StackTrace> {
     if exprs.is_empty() {
