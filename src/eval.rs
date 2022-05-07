@@ -83,7 +83,12 @@ pub enum ValRef {
 
 impl ValRef {
     pub fn to_bool(&self) -> bool {
-        !matches!(self, ValRef::Bool(false) | ValRef::None)
+        #[allow(clippy::match_like_matches_macro)]
+        match self {
+            ValRef::Bool(false) => false,
+            ValRef::None => false,
+            _ => true,
+        }
     }
 
     pub fn to_num(&self) -> f64 {
