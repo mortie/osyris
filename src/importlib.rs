@@ -53,12 +53,11 @@ impl Import for DefaultImporter {
             return ImportResult::ValRef(val.clone());
         }
 
-        let path: PathBuf;
-        if name.starts_with(b"/") {
-            path = name.to_path();
+        let path: PathBuf = if name.starts_with(b"/") {
+            name.to_path()
         } else {
-            path = ctx.cwd.to_path().join(name.to_path());
-        }
+            ctx.cwd.to_path().join(name.to_path())
+        };
 
         let abspath = match fs::canonicalize(path) {
             Ok(path) => path,
@@ -101,7 +100,7 @@ fn import(
     init_with_importer(&scope, childctx);
 
     let mut reader =
-        parse::Reader::new(&code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
+        parse::Reader::new(code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
 
     let mut retval = ValRef::None;
     loop {
@@ -147,8 +146,7 @@ fn lib_import(
 
 pub fn init_with_importer(scope: &Rc<RefCell<Scope>>, ctx: Rc<ImportCtx>) {
     let mut s = scope.borrow_mut();
-    let c = ctx.clone();
-    s.put_func("import", Rc::new(move |a, s| lib_import(&c, a, s)));
+    s.put_func("import", Rc::new(move |a, s| lib_import(&ctx, a, s)));
 }
 
 pub fn init_with_cwd(scope: &Rc<RefCell<Scope>>, cwd: BString) {
