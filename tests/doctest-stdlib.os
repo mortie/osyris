@@ -237,14 +237,6 @@
 	}) 325)
 })
 
-(test-case 'string {
-	(asserteq (string) "")
-	(asserteq (string "Hello") "Hello")
-	(asserteq (string 10) "10")
-	(asserteq (string "There are " 10 " trees") "There are 10 trees")
-	(asserteq (string [3 + 5] " things") "8 things")
-})
-
 (test-case 'try {
 	(asserteq (try {
 		(error "Oh no")
@@ -252,6 +244,28 @@
 		; somehow handle the error
 		"An error occurred"
 	})) "An error occurred")
+})
+
+(test-case 'bool {
+	(asserteq (bool true) true)
+	(asserteq (bool false) false)
+	(asserteq (bool none) false)
+	(asserteq (bool "hello") true)
+})
+
+(test-case 'number {
+	(asserteq (number 10) 10)
+	(asserteq (number false) 0)
+	(asserteq (number true) 1)
+	(asserteq (number "20") 20)
+})
+
+(test-case 'string {
+	(asserteq (string) "")
+	(asserteq (string "Hello") "Hello")
+	(asserteq (string 10) "10")
+	(asserteq (string "There are " 10 " trees") "There are 10 trees")
+	(asserteq (string [3 + 5] " things") "8 things")
 })
 
 (test-case 'lazy {

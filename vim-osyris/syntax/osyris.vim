@@ -19,7 +19,7 @@ syntax keyword osyrisKeyword true false none
 highlight link osyrisKeyword Keyword
 
 syntax keyword osyrisFunction def func set mutate if match while print import
-syntax keyword osyrisFunction bind lambda lazy do not mod
+syntax keyword osyrisFunction bind number bool string lambda lazy do not mod
 syntax keyword osyrisFunction list list-push list-pop list-insert list-remove list-map
 syntax keyword osyrisFunction list-last list-for list-len
 syntax keyword osyrisFunction dict dict-set dict-mutate

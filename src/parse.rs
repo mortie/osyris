@@ -206,7 +206,7 @@ fn read_int(r: &mut Reader<'_>, base: u8) -> (u64, u64) {
     (int, div)
 }
 
-fn read_number(r: &mut Reader<'_>) -> Result<f64, ParseError> {
+pub fn read_number(r: &mut Reader<'_>) -> Result<f64, ParseError> {
     let mut base = 10u8;
     let (mut integral, _) = read_int(r, 10);
     let mut decimal = 0.0;

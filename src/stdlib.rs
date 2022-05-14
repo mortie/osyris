@@ -1,4 +1,5 @@
 use super::bstring::BString;
+use super::parse;
 use super::eval::{self, FuncArgs, PortVal, Scope, StackTrace, ValRef};
 
 use std::cell::RefCell;
@@ -886,41 +887,6 @@ fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 }
 
 /*
-@(string (value:any)*) -> string
-
-Create a string from a value. If there are multiple values,
-they will be converted to strings and concatenated together.
-
-Examples:
-(string) -> ""
-(string "Hello") -> "Hello"
-(string 10) -> "10"
-(string "There are " 10 " trees") -> "There are 10 trees"
-(string [3 + 5] " things") -> "8 things"
-*/
-fn lib_string(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    if args.is_empty() {
-        return Ok(ValRef::String(Rc::new(BString::from_str(""))));
-    }
-
-    if args.len() == 1 && matches!(args[0], ValRef::String(..)) {
-        return Ok(args.pop().unwrap())
-    }
-
-    let args = args.drain(0..);
-    let mut buf: Vec<u8> = Vec::new();
-    for arg in args {
-        if let ValRef::String(s) = arg {
-            buf.extend_from_slice(s.as_ref().as_bytes());
-        } else {
-            buf.extend_from_slice(arg.to_bstring().as_bytes());
-        }
-    }
-
-    Ok(ValRef::String(Rc::new(BString::from_vec(buf))))
-}
-
-/*
 @(error (message:any)*) -> error
 
 Create an error. An error contains a value:
@@ -978,6 +944,93 @@ fn lib_try(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
         Ok(val) => Ok(val),
         Err(err) => eval::call(&catch_body, vec![err.message], scope),
     }
+}
+
+/*
+@(bool value:any) -> bool
+
+Convert the argument to a bool.
+
+Examples:
+(bool true) -> true
+(bool false) -> false
+(bool none) -> false
+(bool "hello") -> true
+*/
+fn lib_bool(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+    let arg = args.next_val()?;
+    args.done()?;
+
+    match arg {
+        ValRef::Bool(..) => Ok(arg),
+        _ => Ok(ValRef::Bool(arg.to_bool())),
+    }
+}
+
+/*
+@(number value:any) -> number
+
+Convert the argument to a number.
+
+Examples:
+(number 10) -> 10
+(number false) -> 0
+(number true) -> 1
+(number "20") -> 20
+*/
+fn lib_number(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    let mut args = args.drain(0..);
+    let arg = args.next_val()?;
+    args.done()?;
+
+    match arg {
+        ValRef::Number(..) => Ok(arg),
+        ValRef::String(s) => {
+            let filename = BString::from_str("string");
+            let mut r = parse::Reader::new(s.as_bytes(), filename);
+            match parse::read_number(&mut r) {
+                Ok(num) => Ok(ValRef::Number(num)),
+                Err(err) => Err(StackTrace::from_string(err.msg)),
+            }
+        }
+        _ => Ok(ValRef::Number(arg.to_num())),
+    }
+}
+
+/*
+@(string (value:any)*) -> string
+
+Create a string from a value. If there are multiple values,
+they will be converted to strings and concatenated together.
+
+Examples:
+(string) -> ""
+(string "Hello") -> "Hello"
+(string 10) -> "10"
+(string "There are " 10 " trees") -> "There are 10 trees"
+(string [3 + 5] " things") -> "8 things"
+*/
+fn lib_string(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+    if args.is_empty() {
+        return Ok(ValRef::String(Rc::new(BString::from_str(""))));
+    }
+
+    if args.len() == 1 && matches!(args[0], ValRef::String(..)) {
+        return Ok(args.pop().unwrap())
+    }
+
+    let args = args.drain(0..);
+    let mut buf: Vec<u8> = Vec::new();
+    for arg in args {
+        if let ValRef::String(s) = arg {
+            buf.extend_from_slice(s.as_ref().as_bytes());
+        } else {
+            buf.extend_from_slice(arg.to_bstring().as_bytes());
+        }
+    }
+
+    Ok(ValRef::String(Rc::new(BString::from_vec(buf))))
 }
 
 /*
@@ -1498,10 +1551,12 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("write", Rc::new(lib_write));
     s.put_func("seek", Rc::new(lib_seek));
 
-    s.put_func("string", Rc::new(lib_string));
-
     s.put_func("error", Rc::new(lib_error));
     s.put_func("try", Rc::new(lib_try));
+
+    s.put_func("number", Rc::new(lib_number));
+    s.put_func("bool", Rc::new(lib_bool));
+    s.put_func("string", Rc::new(lib_string));
 
     s.put_func("lambda", Rc::new(lib_lambda));
 

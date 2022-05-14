@@ -96,7 +96,7 @@ impl ValRef {
             ValRef::Number(num) => *num,
             ValRef::Bool(b) => {
                 if *b {
-                    1f64
+                    1.0
                 } else {
                     0.0
                 }

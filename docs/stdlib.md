@@ -29,9 +29,11 @@
 * [: read](#-read)
 * [: write](#-write)
 * [: seek](#-seek)
-* [: string](#-string)
 * [: error](#-error)
 * [: try](#-try)
+* [: bool](#-bool)
+* [: number](#-number)
+* [: string](#-string)
 * [: lazy](#-lazy)
 * [: lambda](#-lambda)
 * [: list](#-list)
@@ -554,23 +556,6 @@ Seek a port. 'from' can be:
 
 ---
 
-### : string
-
-    (string (value:any)*) -> string
-
-Create a string from a value. If there are multiple values,
-they will be converted to strings and concatenated together.
-
-Examples:
-
-    (string) -> ""
-    (string "Hello") -> "Hello"
-    (string 10) -> "10"
-    (string "There are " 10 " trees") -> "There are 10 trees"
-    (string [3 + 5] " things") -> "8 things"
-
----
-
 ### : error
 
     (error (message:any)*) -> error
@@ -597,6 +582,53 @@ Examples:
         ; somehow handle the error
         "An error occurred"
     })) -> "An error occurred"
+
+---
+
+### : bool
+
+    (bool value:any) -> bool
+
+Convert the argument to a bool.
+
+Examples:
+
+    (bool true) -> true
+    (bool false) -> false
+    (bool none) -> false
+    (bool "hello") -> true
+
+---
+
+### : number
+
+    (number value:any) -> number
+
+Convert the argument to a number.
+
+Examples:
+
+    (number 10) -> 10
+    (number false) -> 0
+    (number true) -> 1
+    (number "20") -> 20
+
+---
+
+### : string
+
+    (string (value:any)*) -> string
+
+Create a string from a value. If there are multiple values,
+they will be converted to strings and concatenated together.
+
+Examples:
+
+    (string) -> ""
+    (string "Hello") -> "Hello"
+    (string 10) -> "10"
+    (string "There are " 10 " trees") -> "There are 10 trees"
+    (string [3 + 5] " things") -> "8 things"
 
 ---
 
