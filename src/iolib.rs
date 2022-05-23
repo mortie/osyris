@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{PortVal, Scope, StackTrace, ValRef};
+use super::eval::{PortVal, Scope, StackTrace, ValRef, FuncResult};
 use std::cell::RefCell;
 use std::fs;
 use std::io;
@@ -44,7 +44,7 @@ impl PortVal for TextFile {
     }
 }
 
-pub fn lib_open(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+pub fn lib_open(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.len() != 1 {
         return Err(StackTrace::from_str("'open' requires 1 argument"));
     }
@@ -68,10 +68,10 @@ pub fn lib_open(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
         }
     };
 
-    Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
+    Ok((ValRef::Port(Rc::new(RefCell::new(TextFile { f }))), scope))
 }
 
-pub fn lib_create(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+pub fn lib_create(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.len() != 1 {
         return Err(StackTrace::from_str("'create' requires 1 argument"));
     }
@@ -95,7 +95,7 @@ pub fn lib_create(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
         }
     };
 
-    Ok(ValRef::Port(Rc::new(RefCell::new(TextFile { f }))))
+    Ok((ValRef::Port(Rc::new(RefCell::new(TextFile { f }))), scope))
 }
 
 struct ChildProc {
@@ -136,7 +136,7 @@ impl PortVal for ChildProc {
     }
 }
 
-pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+pub fn lib_exec(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
         return Err(StackTrace::from_str("'exec' requires at least 1 argument"));
     }
@@ -165,7 +165,7 @@ pub fn lib_exec(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 
     match cmd.spawn() {
         Err(err) => Err(StackTrace::from_string(format!("exec: {}", err))),
-        Ok(child) => Ok(ValRef::Port(Rc::new(RefCell::new(ChildProc { c: child })))),
+        Ok(child) => Ok((ValRef::Port(Rc::new(RefCell::new(ChildProc { c: child }))), scope)),
     }
 }
 

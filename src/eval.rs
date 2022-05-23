@@ -38,8 +38,9 @@ impl FuncArgs for vec::Drain<'_, ValRef> {
     }
 }
 
+pub type FuncResult = Result<(ValRef, Rc<RefCell<Scope>>), StackTrace>;
 pub type DictVal = HashMap<BString, ValRef>;
-pub type FuncVal = dyn Fn(Vec<ValRef>, &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace>;
+pub type FuncVal = dyn Fn(Vec<ValRef>, Rc<RefCell<Scope>>) -> FuncResult;
 
 pub struct LambdaVal {
     pub args: Vec<BString>,
@@ -346,6 +347,7 @@ impl fmt::Display for StackTrace {
     }
 }
 
+#[derive(Clone)]
 pub struct Scope {
     pub parent: Option<Rc<RefCell<Scope>>>,
     pub map: HashMap<BString, ValRef>,
@@ -433,8 +435,8 @@ impl Default for Scope {
 pub fn call(
     func: &ValRef,
     mut args: Vec<ValRef>,
-    scope: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, StackTrace> {
+    scope: Rc<RefCell<Scope>>,
+) -> FuncResult {
     match &func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Block(exprs) => eval_multiple(&exprs[..], scope),
@@ -453,7 +455,8 @@ pub fn call(
             }
 
             drop(ss);
-            eval_multiple(&l.body[..], &subscope)
+            let (retval, _) = eval_multiple(&l.body[..], subscope)?;
+            Ok((retval, scope))
         }
         ValRef::Binding(b, func) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
@@ -464,7 +467,7 @@ pub fn call(
             }
 
             drop(ss);
-            call(func.as_ref(), args, &subscope)
+            call(func.as_ref(), args, subscope)
         }
         ValRef::List(list) => {
             if args.len() != 1 {
@@ -481,9 +484,9 @@ pub fn call(
             };
 
             if idx as usize >= list.borrow().len() || idx < 0.0 {
-                Ok(ValRef::None)
+                Ok((ValRef::None, scope))
             } else {
-                Ok(list.borrow()[idx as usize].clone())
+                Ok((list.borrow()[idx as usize].clone(), scope))
             }
         }
         ValRef::Dict(map) => {
@@ -499,8 +502,8 @@ pub fn call(
             };
 
             match map.borrow().get(key.as_ref()) {
-                Some(val) => Ok(val.clone()),
-                None => Ok(ValRef::None),
+                Some(val) => Ok((val.clone(), scope)),
+                None => Ok((ValRef::None, scope)),
             }
         }
         _ => Err(StackTrace::from_string(format!(
@@ -512,8 +515,8 @@ pub fn call(
 
 pub fn eval_call(
     exprs: &[ast::Expression],
-    scope: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, StackTrace> {
+    mut scope: Rc<RefCell<Scope>>,
+) -> FuncResult {
     if exprs.is_empty() {
         return Err(StackTrace::from_str("Call list has no elements"));
     }
@@ -521,31 +524,33 @@ pub fn eval_call(
     let mut args: Vec<ValRef> = Vec::new();
     args.reserve(exprs.len() - 1);
     for item in exprs.iter().skip(1) {
-        args.push(eval(item, scope)?);
+        let arg;
+        (arg, scope) = eval(item, scope)?;
+        args.push(arg);
     }
 
-    let func = eval(&exprs[0], scope)?;
+    let (func, scope) = eval(&exprs[0], scope)?;
     call(&func, args, scope)
 }
 
-fn resolve_lazy(lazy: &ValRef, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn resolve_lazy(lazy: &ValRef, scope: Rc<RefCell<Scope>>) -> FuncResult {
     match lazy {
         ValRef::Func(func) => func(Vec::new(), scope),
         ValRef::Lambda(l) => {
             let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
-            eval_multiple(&l.body[..], &subscope)
+            eval_multiple(&l.body[..], subscope)
         }
         ValRef::Block(exprs) => eval_multiple(exprs, scope),
-        _ => Ok(lazy.clone()),
+        _ => Ok((lazy.clone(), scope)),
     }
 }
 
-pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    let mut val = match expr {
-        ast::Expression::String(s) => Ok(ValRef::String(Rc::new(s.clone()))),
-        ast::Expression::Number(num) => Ok(ValRef::Number(*num)),
-        ast::Expression::Lookup(name) => match scope.borrow().lookup(name) {
-            Some(val) => Ok(val),
+pub fn eval(expr: &ast::Expression, scope: Rc<RefCell<Scope>>) -> FuncResult {
+    let (mut val, mut scope) = match expr {
+        ast::Expression::String(s) => Ok((ValRef::String(Rc::new(s.clone())), scope)),
+        ast::Expression::Number(num) => Ok((ValRef::Number(*num), scope)),
+        ast::Expression::Lookup(name) => match scope.clone().borrow().lookup(name) {
+            Some(val) => Ok((val, scope)),
             None => Err(StackTrace::from_string(format!(
                 "Variable '{}' doesn't exist",
                 name
@@ -553,31 +558,31 @@ pub fn eval(expr: &ast::Expression, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
         },
         ast::Expression::Call(exprs, loc) => {
             match eval_call(exprs, scope) {
-                Ok(val) => Ok(val),
+                Ok(res) => Ok(res),
                 Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
             }
         }
-        ast::Expression::Block(exprs) => Ok(ValRef::Block(exprs.clone())),
+        ast::Expression::Block(exprs) => Ok((ValRef::Block(exprs.clone()), scope)),
     }?;
 
     loop {
         match val {
-            ValRef::Lazy(lazy) => val = resolve_lazy(&lazy, scope)?,
-            ValRef::ProtectedLazy(lazy) => return Ok(ValRef::Lazy(lazy)),
-            _ => return Ok(val),
+            ValRef::Lazy(lazy) => (val, scope) = resolve_lazy(&lazy, scope)?,
+            ValRef::ProtectedLazy(lazy) => return Ok((ValRef::Lazy(lazy), scope)),
+            _ => return Ok((val, scope)),
         }
     }
 }
 
 pub fn eval_multiple(
     exprs: &[ast::Expression],
-    scope: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, StackTrace> {
-    let mut retval = ValRef::None;
+    scope: Rc<RefCell<Scope>>,
+) -> FuncResult {
+    let (mut retval, mut scope) = (ValRef::None, scope);
     for expr in exprs {
         drop(retval);
-        retval = eval(expr, scope)?;
+        (retval, scope) = eval(expr, scope)?;
     }
 
-    Ok(retval)
+    Ok((retval, scope))
 }

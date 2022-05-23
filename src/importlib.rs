@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{eval, FuncArgs, Scope, StackTrace, ValRef};
+use super::eval::{eval, FuncArgs, Scope, StackTrace, ValRef, FuncResult};
 use super::parse;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -80,18 +80,18 @@ impl Import for DefaultImporter {
 fn import(
     ctx: &Rc<ImportCtx>,
     name: &BString,
-    scope: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, StackTrace> {
+    mut scope: Rc<RefCell<Scope>>,
+) -> FuncResult {
     let (abspath, code) = match ctx.importer.borrow().import(ctx, name) {
         ImportResult::Err(err) => return Err(err),
-        ImportResult::ValRef(val) => return Ok(val),
+        ImportResult::ValRef(val) => return Ok((val, scope)),
         ImportResult::Code(path, code) => (path, code),
     };
 
     let mut dirpath = abspath.clone();
     dirpath.pop();
 
-    let scope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
+    scope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
     let childctx = Rc::new(ImportCtx::new(
         ctx.importer.clone(),
@@ -118,8 +118,8 @@ fn import(
         };
 
         drop(retval);
-        match eval(&expr, &scope) {
-            Ok(val) => retval = val,
+        match eval(&expr, scope) {
+            Ok(res) => (retval, scope) = res,
             Err(err) => return Err(err),
         }
     }
@@ -128,14 +128,14 @@ fn import(
         .borrow_mut()
         .insert(BString::from_os_str(abspath.as_os_str()), retval.clone());
 
-    Ok(retval)
+    Ok((retval, scope))
 }
 
 fn lib_import(
     importctx: &Rc<ImportCtx>,
     mut args: Vec<ValRef>,
-    scope: &Rc<RefCell<Scope>>,
-) -> Result<ValRef, StackTrace> {
+    scope: Rc<RefCell<Scope>>,
+) -> FuncResult {
     let mut args = args.drain(0..);
 
     let path = args.next_val()?.get_string()?;

@@ -1,4 +1,4 @@
-use super::eval::{Scope, StackTrace, ValRef};
+use super::eval::{Scope, StackTrace, ValRef, FuncResult};
 use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
@@ -154,9 +154,9 @@ where
     writeln!(w, "}}")
 }
 
-fn lib_print_scope_dot(_: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    match write_dot(&mut io::stdout(), scope) {
-        Ok(()) => Ok(ValRef::None),
+fn lib_print_scope_dot(_: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+    match write_dot(&mut io::stdout(), &scope) {
+        Ok(()) => Ok((ValRef::None, scope)),
         Err(err) => Err(StackTrace::from_string(err.to_string())),
     }
 }

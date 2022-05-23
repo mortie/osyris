@@ -60,7 +60,7 @@ fn main() {
     importlib::init_with_path(&rootscope, path);
     dotlib::init(&rootscope);
 
-    let scope = Rc::new(RefCell::new(eval::Scope::new_with_parent(rootscope)));
+    let mut scope = Rc::new(RefCell::new(eval::Scope::new_with_parent(rootscope)));
 
     loop {
         let expr = match parse::parse(&mut reader) {
@@ -76,9 +76,14 @@ fn main() {
 
         if print_ast {
             println!("{}", expr);
-        } else if let Err(err) = eval::eval(&expr, &scope) {
-            eprintln!("Error: {}", err);
-            process::exit(1);
+        } else {
+            match eval::eval(&expr, scope) {
+                Ok((_, s)) => scope = s,
+                Err(err) => {
+                    eprintln!("Error: {}", err);
+                    process::exit(1);
+                }
+            }
         }
     }
 }

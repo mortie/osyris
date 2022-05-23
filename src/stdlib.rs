@@ -1,6 +1,6 @@
 use super::bstring::BString;
 use super::parse;
-use super::eval::{self, FuncArgs, PortVal, Scope, StackTrace, ValRef};
+use super::eval::{self, FuncArgs, PortVal, Scope, FuncResult, StackTrace, ValRef};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ use std::iter;
 
 Print the arguments to 'stdout', separated by a space.
 */
-fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_print(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let args = args.drain(0..);
 
     let stdout = match scope.borrow().lookup(&BString::from_str("stdout")) {
@@ -59,7 +59,7 @@ fn lib_print(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
         Err(err) => return Err(StackTrace::from_string(err)),
     }
 
-    Ok(ValRef::None)
+    Ok((ValRef::None, scope))
 }
 
 /*
@@ -71,12 +71,12 @@ Examples:
 (not true) -> false
 (not false) -> true
 */
-fn lib_not(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_not(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let arg = args.next_val()?;
     args.done()?;
-    Ok(ValRef::Bool(!arg.to_bool()))
+    Ok((ValRef::Bool(!arg.to_bool()), scope))
 }
 
 /*
@@ -90,13 +90,13 @@ Examples:
 (mod 9 2) -> 1
 (mod 8 2) -> 0
 */
-fn lib_mod(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_mod(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let a = args.next_val()?.get_number()?;
     let b = args.next_val()?.get_number()?;
     args.done()?;
-    Ok(ValRef::Number(a % b))
+    Ok((ValRef::Number(a % b), scope))
 }
 
 /*
@@ -111,9 +111,9 @@ Examples:
 (+ 1 2 3 4 5) -> 15
 (+) -> 0
 */
-fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_add(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Number(0.0));
+        return Ok((ValRef::Number(0.0), scope));
     }
 
     let mut num = args[0].to_num();
@@ -121,7 +121,7 @@ fn lib_add(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
         num += item.to_num();
     }
 
-    Ok(ValRef::Number(num))
+    Ok((ValRef::Number(num), scope))
 }
 
 /*
@@ -137,11 +137,11 @@ Examples:
 (- 10 2 3) -> 5
 (-) -> 0
 */
-fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_sub(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Number(0.0));
+        return Ok((ValRef::Number(0.0), scope));
     } else if args.len() == 1 {
-        return Ok(ValRef::Number(-args[0].to_num()));
+        return Ok((ValRef::Number(-args[0].to_num()), scope));
     }
 
     let mut num = args[0].to_num();
@@ -149,7 +149,7 @@ fn lib_sub(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
         num -= item.to_num();
     }
 
-    Ok(ValRef::Number(num))
+    Ok((ValRef::Number(num), scope))
 }
 
 /*
@@ -164,9 +164,9 @@ Examples:
 (* 10 2 3) -> 60
 (*) -> 0
 */
-fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_mul(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Number(0.0));
+        return Ok((ValRef::Number(0.0), scope));
     }
 
     let mut num = args[0].to_num();
@@ -174,7 +174,7 @@ fn lib_mul(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
         num *= item.to_num();
     }
 
-    Ok(ValRef::Number(num))
+    Ok((ValRef::Number(num), scope))
 }
 
 /*
@@ -190,11 +190,11 @@ Examples:
 [200 / 10] -> 20
 (/) -> 0
 */
-fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_div(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Number(0.0));
+        return Ok((ValRef::Number(0.0), scope));
     } else if args.len() == 1 {
-        return Ok(ValRef::Number(1.0 / args[0].to_num()));
+        return Ok((ValRef::Number(1.0 / args[0].to_num()), scope));
     }
 
     let mut num = args[0].to_num();
@@ -202,7 +202,7 @@ fn lib_div(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTra
         num /= item.to_num();
     }
 
-    Ok(ValRef::Number(num))
+    Ok((ValRef::Number(num), scope))
 }
 
 /*
@@ -225,18 +225,18 @@ Examples:
     (list (list (list 1) (list 2)))) -> true
 (== (list 1 2 3) (list 1 2 4)) -> false
 */
-fn lib_equals(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_equals(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.len() <= 1 {
-        return Ok(ValRef::Bool(true));
+        return Ok((ValRef::Bool(true), scope));
     }
 
     for idx in 0..args.len() - 1 {
         if !ValRef::equals(&args[idx], &args[idx + 1]) {
-            return Ok(ValRef::Bool(false));
+            return Ok((ValRef::Bool(false), scope));
         }
     }
 
-    Ok(ValRef::Bool(true))
+    Ok((ValRef::Bool(true), scope))
 }
 
 /*
@@ -252,10 +252,10 @@ Examples:
 (!= "11" 11) -> true
 (!=) -> false
 */
-fn lib_nequals(args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_nequals(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     match lib_equals(args, scope) {
-        Ok(ValRef::Bool(true)) => Ok(ValRef::Bool(false)),
-        Ok(ValRef::Bool(false)) => Ok(ValRef::Bool(true)),
+        Ok((ValRef::Bool(true), s)) => Ok((ValRef::Bool(false), s)),
+        Ok((ValRef::Bool(false), s)) => Ok((ValRef::Bool(true), s)),
         val => val,
     }
 }
@@ -274,18 +274,18 @@ Examples:
 (<= 10) -> true
 (<=) -> true
 */
-fn lib_lteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lteq(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Bool(true));
+        return Ok((ValRef::Bool(true), scope));
     }
 
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() > args[idx + 1].to_num() {
-            return Ok(ValRef::Bool(false));
+            return Ok((ValRef::Bool(false), scope));
         }
     }
 
-    Ok(ValRef::Bool(true))
+    Ok((ValRef::Bool(true), scope))
 }
 
 /*
@@ -302,18 +302,18 @@ Examples:
 (< 10) -> true
 (<) -> true
 */
-fn lib_lt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lt(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Bool(true));
+        return Ok((ValRef::Bool(true), scope));
     }
 
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() >= args[idx + 1].to_num() {
-            return Ok(ValRef::Bool(false));
+            return Ok((ValRef::Bool(false), scope));
         }
     }
 
-    Ok(ValRef::Bool(true))
+    Ok((ValRef::Bool(true), scope))
 }
 
 /*
@@ -330,18 +330,18 @@ Examples:
 (>= 10) -> true
 (>=) -> true
 */
-fn lib_gteq(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_gteq(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Bool(true));
+        return Ok((ValRef::Bool(true), scope));
     }
 
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() < args[idx + 1].to_num() {
-            return Ok(ValRef::Bool(false));
+            return Ok((ValRef::Bool(false), scope));
         }
     }
 
-    Ok(ValRef::Bool(true))
+    Ok((ValRef::Bool(true), scope))
 }
 
 /*
@@ -358,18 +358,18 @@ Examples:
 (> 10) -> true
 (>) -> true
 */
-fn lib_gt(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_gt(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::Bool(true));
+        return Ok((ValRef::Bool(true), scope));
     }
 
     for idx in 0..args.len() - 1 {
         if args[idx].to_num() <= args[idx + 1].to_num() {
-            return Ok(ValRef::Bool(false));
+            return Ok((ValRef::Bool(false), scope));
         }
     }
 
-    Ok(ValRef::Bool(true))
+    Ok((ValRef::Bool(true), scope))
 }
 
 /*
@@ -385,14 +385,14 @@ Examples:
 (|| true false true) -> true
 (||) -> false
 */
-fn lib_or(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_or(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     for item in args {
         if item.to_bool() {
-            return Ok(ValRef::Bool(true));
+            return Ok((ValRef::Bool(true), scope));
         }
     }
 
-    Ok(ValRef::Bool(false))
+    Ok((ValRef::Bool(false), scope))
 }
 
 /*
@@ -409,14 +409,14 @@ Examples:
 (&& true false true) -> false
 (&&) -> true
 */
-fn lib_and(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_and(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     for item in args {
         if !item.to_bool() {
-            return Ok(ValRef::Bool(false));
+            return Ok((ValRef::Bool(false), scope));
         }
     }
 
-    Ok(ValRef::Bool(true))
+    Ok((ValRef::Bool(true), scope))
 }
 
 /*
@@ -431,15 +431,15 @@ Examples:
 (?? none none none 3) -> 3
 (??) -> none
 */
-fn lib_first(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_first(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     for arg in args.drain(0..) {
         match arg {
             ValRef::None => (),
-            _ => return Ok(arg),
+            _ => return Ok((arg, scope)),
         }
     }
 
-    Ok(ValRef::None)
+    Ok((ValRef::None, scope))
 }
 
 /*
@@ -454,17 +454,18 @@ x -> 10
 (def 'x 40 'y 50) -> none
 (+ x y) -> 90
 */
-fn lib_def(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_def(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
-    let mut scopemut = scope.borrow_mut();
+    let mut scope_mut = scope.borrow_mut();
     while args.has_next() {
         let key = args.next_val()?.get_string()?;
         let val = args.next_val()?;
-        scopemut.insert(key.as_ref().clone(), val);
+        scope_mut.insert(key.as_ref().clone(), val);
     }
 
-    Ok(ValRef::None)
+    drop(scope_mut);
+    Ok((ValRef::None, scope))
 }
 
 /*
@@ -485,7 +486,7 @@ Examples:
 (add 10 20) -> 30
 (add 9 10) -> 19
 */
-fn lib_func(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_func(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let name = args.next_val()?.get_string()?;
@@ -517,7 +518,7 @@ fn lib_func(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
     }));
     scope.borrow_mut().insert(name.as_ref().clone(), val);
 
-    Ok(ValRef::None)
+    Ok((ValRef::None, scope))
 }
 
 /*
@@ -536,15 +537,15 @@ x -> 50
 })
 x -> 3
 */
-fn lib_set(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_set(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
-    let mut scopemut = scope.borrow_mut();
+    let mut scope_mut = scope.borrow_mut();
     while args.has_next() {
         let key = args.next_val()?.get_string()?;
         let val = args.next_val()?;
 
-        if !scopemut.replace(key.as_ref().clone(), val) {
+        if !scope_mut.replace(key.as_ref().clone(), val) {
             return Err(StackTrace::from_string(format!(
                 "Variable '{}' doesn't exist",
                 key
@@ -552,7 +553,8 @@ fn lib_set(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, 
         }
     }
 
-    Ok(ValRef::None)
+    drop(scope_mut);
+    Ok((ValRef::None, scope))
 }
 
 /*
@@ -577,14 +579,20 @@ x -> 10
 (mutate 'x + 5) -> 15
 x -> 15
 */
-fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_mutate(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.len() < 2 {
         return Err(StackTrace::from_str("Not enough arguments"));
     }
 
     let name = args[0].clone().get_string()?;
 
-    let (val, s) = match Scope::rlookup(scope, name.as_ref()) {
+    let scope = if Rc::strong_count(&scope) == 1 {
+        scope
+    } else {
+        Rc::new(RefCell::new(scope.borrow().clone()))
+    };
+
+    let val = match scope.borrow().lookup(name.as_ref()) {
         Some(val) => val,
         None => {
             return Err(StackTrace::from_string(format!(
@@ -594,16 +602,16 @@ fn lib_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRe
         }
     };
 
-    s.borrow_mut().remove(name.as_ref());
+    scope.borrow_mut().remove(name.as_ref());
 
     // Replace the name and the mutator function with the value to be
     // passed as the first argument, so that we can re-use the args array
     let func = args.remove(1);
     args[0] = val;
 
-    let res = eval::call(&func, args, scope)?;
-    s.borrow_mut().insert(name.as_ref().clone(), res.clone());
-    Ok(res)
+    let (new_val, new_scope) = eval::call(&func, args, scope)?;
+    new_scope.borrow_mut().insert(name.as_ref().clone(), new_val.clone());
+    Ok((new_val, new_scope))
 }
 
 /*
@@ -622,7 +630,7 @@ Examples:
 }) -> 40
 (if false {10}) -> none
 */
-fn lib_if(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_if(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let cond = args.next_val()?.to_bool();
@@ -635,7 +643,7 @@ fn lib_if(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, S
     } else if let Some(else_body) = else_body {
         eval::call(&else_body, vec![], scope)
     } else {
-        Ok(ValRef::None)
+        Ok((ValRef::None, scope))
     }
 }
 
@@ -659,7 +667,7 @@ Examples:
         [num + 1]}
 ) -> 100
 */
-fn lib_match(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_match(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     while args.has_next() {
@@ -669,12 +677,14 @@ fn lib_match(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
             return Err(StackTrace::from_str("Blocks must have at least 1 element"));
         }
 
-        if eval::eval(&block[0], scope)?.to_bool() {
+        let val;
+        (val, scope) = eval::eval(&block[0], scope)?;
+        if val.to_bool() {
             return eval::eval_multiple(&block[1..], scope);
         }
     }
 
-    Ok(ValRef::None)
+    Ok((ValRef::None, scope))
 }
 
 /*
@@ -698,7 +708,7 @@ index -> 4
 
 (while {false}) -> none
 */
-fn lib_while(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_while(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let cond = args.next_val()?;
@@ -707,13 +717,15 @@ fn lib_while(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef
 
     let mut retval: ValRef = ValRef::None;
     loop {
-        if !eval::call(&cond, vec![], scope)?.to_bool() {
-            return Ok(retval);
+        let val;
+        (val, scope) = eval::call(&cond, vec![], scope)?;
+        if !val.to_bool() {
+            return Ok((retval, scope));
         }
 
         if let Some(body) = &body {
             drop(retval);
-            retval = eval::call(body, vec![], scope)?;
+            (retval, scope) = eval::call(body, vec![], scope)?;
         }
     }
 }
@@ -732,11 +744,11 @@ Examples:
 ; Expressions may have side-effects, which is generally when you'd need 'do'
 (do (def 'x 10) [x + 5]) -> 15
 */
-fn lib_do(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_do(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if let Some(val) = args.pop() {
-        Ok(val)
+        Ok((val, scope))
     } else {
-        Ok(ValRef::None)
+        Ok((ValRef::None, scope))
     }
 }
 
@@ -763,7 +775,7 @@ Examples:
 (def 'f (create-function))
 (f) -> 30
 */
-fn lib_bind(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_bind(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let mut map: HashMap<BString, ValRef> = HashMap::new();
@@ -776,7 +788,7 @@ fn lib_bind(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     let func = args.next_val()?;
     args.done()?;
 
-    Ok(ValRef::Binding(Rc::new(map), Rc::new(func)))
+    Ok((ValRef::Binding(Rc::new(map), Rc::new(func)), scope))
 }
 
 /*
@@ -789,7 +801,7 @@ Examples:
     [num + 5]
 }) -> 325
 */
-fn lib_with(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_with(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let mut s = Scope::new_with_parent(scope.clone());
@@ -803,7 +815,7 @@ fn lib_with(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
     let func = args.next_val()?;
     args.done()?;
 
-    eval::call(&func, vec![], &Rc::new(RefCell::new(s)))
+    eval::call(&func, vec![], Rc::new(RefCell::new(s)))
 }
 
 /*
@@ -811,7 +823,7 @@ fn lib_with(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef,
 
 Read from a port.
 */
-fn lib_read(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_read(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let port = args.next_val()?.get_port()?;
@@ -825,7 +837,7 @@ fn lib_read(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
     };
 
     match res {
-        Ok(val) => Ok(val),
+        Ok(val) => Ok((val, scope)),
         Err(err) => Err(StackTrace::from_string(err)),
     }
 }
@@ -835,7 +847,7 @@ fn lib_read(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 
 Write to a port.
 */
-fn lib_write(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_write(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let port = args.next_val()?.get_port()?;
@@ -844,7 +856,7 @@ fn lib_write(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, St
 
     let res = port.borrow_mut().write(&val);
     match res {
-        Ok(_) => Ok(ValRef::None),
+        Ok(_) => Ok((ValRef::None, scope)),
         Err(err) => Err(StackTrace::from_string(err)),
     }
 }
@@ -857,7 +869,7 @@ Seek a port. 'from' can be:
 * end: Seek from the end
 * current: Seek from the current position
 */
-fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_seek(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let port = args.next_val()?.get_port()?;
@@ -881,7 +893,7 @@ fn lib_seek(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
 
     let res = port.borrow_mut().seek(pos);
     match res {
-        Ok(_) => Ok(ValRef::None),
+        Ok(_) => Ok((ValRef::None, scope)),
         Err(err) => Err(StackTrace::from_string(err)),
     }
 }
@@ -895,7 +907,7 @@ Create an error. An error contains a value:
 * If 'error' is called with multiple arguments, they are concatenated together
   and the value is the resulting string.
 */
-fn lib_error(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_error(args: Vec<ValRef>, _: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
         Err(StackTrace::from_val(ValRef::None))
     } else if args.len() == 1 {
@@ -933,15 +945,15 @@ Examples:
     "An error occurred"
 })) -> "An error occurred"
 */
-fn lib_try(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_try(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let try_body = args.next_val()?;
     let catch_body = args.next_val()?;
     args.done()?;
 
-    match eval::call(&try_body, Vec::new(), scope) {
-        Ok(val) => Ok(val),
+    match eval::call(&try_body, Vec::new(), scope.clone()) {
+        Ok(res) => Ok(res),
         Err(err) => eval::call(&catch_body, vec![err.message], scope),
     }
 }
@@ -957,14 +969,14 @@ Examples:
 (bool none) -> false
 (bool "hello") -> true
 */
-fn lib_bool(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_bool(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
     let arg = args.next_val()?;
     args.done()?;
 
     match arg {
-        ValRef::Bool(..) => Ok(arg),
-        _ => Ok(ValRef::Bool(arg.to_bool())),
+        ValRef::Bool(..) => Ok((arg, scope)),
+        _ => Ok((ValRef::Bool(arg.to_bool()), scope)),
     }
 }
 
@@ -979,22 +991,22 @@ Examples:
 (number true) -> 1
 (number "20") -> 20
 */
-fn lib_number(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_number(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
     let arg = args.next_val()?;
     args.done()?;
 
     match arg {
-        ValRef::Number(..) => Ok(arg),
+        ValRef::Number(..) => Ok((arg, scope)),
         ValRef::String(s) => {
             let filename = BString::from_str("string");
             let mut r = parse::Reader::new(s.as_bytes(), filename);
             match parse::read_number(&mut r) {
-                Ok(num) => Ok(ValRef::Number(num)),
+                Ok(num) => Ok((ValRef::Number(num), scope)),
                 Err(err) => Err(StackTrace::from_string(err.msg)),
             }
         }
-        _ => Ok(ValRef::Number(arg.to_num())),
+        _ => Ok((ValRef::Number(arg.to_num()), scope)),
     }
 }
 
@@ -1011,13 +1023,13 @@ Examples:
 (string "There are " 10 " trees") -> "There are 10 trees"
 (string [3 + 5] " things") -> "8 things"
 */
-fn lib_string(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_string(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.is_empty() {
-        return Ok(ValRef::String(Rc::new(BString::from_str(""))));
+        return Ok((ValRef::String(Rc::new(BString::from_str(""))), scope));
     }
 
     if args.len() == 1 && matches!(args[0], ValRef::String(..)) {
-        return Ok(args.pop().unwrap())
+        return Ok((args.pop().unwrap(), scope))
     }
 
     let args = args.drain(0..);
@@ -1030,7 +1042,7 @@ fn lib_string(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
         }
     }
 
-    Ok(ValRef::String(Rc::new(BString::from_vec(buf))))
+    Ok((ValRef::String(Rc::new(BString::from_vec(buf))), scope))
 }
 
 /*
@@ -1047,13 +1059,13 @@ Examples:
 (def 'ten (lazy make-ten))
 ten -> 10
 */
-fn lib_lazy(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lazy(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let val = args.next_val()?;
     args.done()?;
 
-    Ok(ValRef::ProtectedLazy(Rc::new(val)))
+    Ok((ValRef::ProtectedLazy(Rc::new(val)), scope))
 }
 
 /*
@@ -1070,7 +1082,7 @@ Examples:
 (add 5 7) -> 12
 [9 add 10] -> 19
 */
-fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_lambda(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let mut argnames: Vec<BString> = Vec::new();
@@ -1094,10 +1106,10 @@ fn lib_lambda(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, S
         None => return Err(StackTrace::from_str("Expected block")),
     };
 
-    Ok(ValRef::Lambda(Rc::new(eval::LambdaVal {
+    Ok((ValRef::Lambda(Rc::new(eval::LambdaVal {
         args: argnames,
         body: block,
-    })))
+    })), scope))
 }
 
 /*
@@ -1122,8 +1134,8 @@ l.1 -> 20
 l.[0 + 1] -> 20
 l.(+ 0 1) -> 20
 */
-fn lib_list(args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
-    Ok(ValRef::List(Rc::new(RefCell::new(args))))
+fn lib_list(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+    Ok((ValRef::List(Rc::new(RefCell::new(args))), scope))
 }
 
 /*
@@ -1138,7 +1150,7 @@ l -> (list 10)
 (mutate 'l list-push 30 40)
 l -> (list 10 30 40)
 */
-fn lib_list_push(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_push(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1155,7 +1167,7 @@ fn lib_list_push(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef
     }
 
     drop(lstmut);
-    Ok(ValRef::List(lst))
+    Ok((ValRef::List(lst), scope))
 }
 
 /*
@@ -1169,7 +1181,7 @@ l -> (list 10 20)
 (mutate 'l list-pop)
 l -> (list 10)
 */
-fn lib_list_pop(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_pop(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1182,7 +1194,7 @@ fn lib_list_pop(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef,
     };
 
     lst.borrow_mut().pop();
-    Ok(ValRef::List(lst))
+    Ok((ValRef::List(lst), scope))
 }
 
 /*
@@ -1199,7 +1211,7 @@ l -> (list 10 1 2 3)
 (mutate 'l list-insert 2 99 100)
 l -> (list 10 1 99 100 2 3)
 */
-fn lib_list_insert(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_insert(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1216,7 +1228,7 @@ fn lib_list_insert(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValR
     };
 
     lst.borrow_mut().splice(idx..idx, args);
-    Ok(ValRef::List(lst))
+    Ok((ValRef::List(lst), scope))
 }
 
 /*
@@ -1238,7 +1250,7 @@ l -> (list 1 2 3 4)
 (mutate 'l list-remove 1 3)
 l -> (list 1 4)
 */
-fn lib_list_remove(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_remove(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1259,7 +1271,7 @@ fn lib_list_remove(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValR
     };
 
     lst.borrow_mut().splice(idx..end, iter::empty());
-    Ok(ValRef::List(lst))
+    Ok((ValRef::List(lst), scope))
 }
 
 /*
@@ -1273,7 +1285,7 @@ l -> (list 1 2 3)
 (mutate 'l list-map (lambda 'x {[x * 10]}))
 l -> (list 10 20 30)
 */
-fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_map(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1285,21 +1297,25 @@ fn lib_list_map(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<Val
         for idx in 0..lstmut.len() {
             let val = mem::replace(&mut lstmut[idx], ValRef::None);
             let vec = vec![val, ValRef::Number(idx as f64)];
-            lstmut[idx] = eval::call(&func, vec, scope)?;
+            let res;
+            (res, scope) = eval::call(&func, vec, scope)?;
+            lstmut[idx] = res;
         }
 
         drop(lstmut);
-        Ok(ValRef::List(lst))
+        Ok((ValRef::List(lst), scope))
     } else {
         let lst = lst.borrow();
         let mut lstmut: Vec<ValRef> = Vec::new();
         lstmut.reserve(lst.len());
         for idx in 0..lst.len() {
             let vec = vec![lst[idx].clone(), ValRef::Number(idx as f64)];
-            lstmut.push(eval::call(&func, vec, scope)?);
+            let res;
+            (res, scope) = eval::call(&func, vec, scope)?;
+            lstmut.push(res);
         }
 
-        Ok(ValRef::List(Rc::new(RefCell::new(lstmut))))
+        Ok((ValRef::List(Rc::new(RefCell::new(lstmut))), scope))
     }
 }
 
@@ -1312,7 +1328,7 @@ Examples:
 (list-last (list 10 20)) -> 20
 (list-last (list)) -> none
 */
-fn lib_list_last(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_last(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1320,8 +1336,8 @@ fn lib_list_last(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef
 
     let lst = lst.borrow();
     match lst.last() {
-        Some(v) => Ok(v.clone()),
-        None => Ok(ValRef::None)
+        Some(v) => Ok((v.clone(), scope)),
+        None => Ok((ValRef::None, scope))
     }
 }
 
@@ -1332,13 +1348,12 @@ Call the function with every element of the list.
 The return value is whatever the last function call returned.
 
 Examples:
-(def 'l (list 1 2 3))
-(def 'sum 0)
+(def 'l (list 1 2 3 99))
 (list-for l (lambda 'el {
-    (mutate 'sum + el)
-})) -> 6
+    el
+})) -> 99
 */
-fn lib_list_for(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_for(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1348,10 +1363,10 @@ fn lib_list_for(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<Val
     let mut retval = ValRef::None;
     for idx in 0..lst.borrow().len() {
         drop(retval);
-        retval = eval::call(&func, vec![lst.borrow()[idx].clone()], scope)?;
+        (retval, scope) = eval::call(&func, vec![lst.borrow()[idx].clone()], scope)?;
     }
 
-    Ok(retval)
+    Ok((retval, scope))
 }
 
 /*
@@ -1363,12 +1378,12 @@ Examples:
 (list-len (list)) -> 0
 (list-len (list 1 2 3)) -> 3
 */
-fn lib_list_len(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_list_len(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
     let lst = args.next_val()?.get_list()?;
     args.done()?;
     let lst = lst.borrow();
-    Ok(ValRef::Number(lst.len() as f64))
+    Ok((ValRef::Number(lst.len() as f64), scope))
 }
 
 /*
@@ -1393,7 +1408,7 @@ Examples:
 d.x -> 10
 d.y -> 20
 */
-fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_dict(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
 
     let mut dict: HashMap<BString, ValRef> = HashMap::new();
@@ -1403,7 +1418,7 @@ fn lib_dict(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, Sta
         dict.insert(key.as_ref().clone(), val.clone());
     }
 
-    Ok(ValRef::Dict(Rc::new(RefCell::new(dict))))
+    Ok((ValRef::Dict(Rc::new(RefCell::new(dict))), scope))
 }
 
 /*
@@ -1417,7 +1432,7 @@ d -> (dict 'x 10 'y 20)
 (mutate 'd dict-set 'x 30)
 d -> (dict 'x 30 'y 20)
 */
-fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_dict_set(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     let mut args = args.drain(0..);
     let dict = args.next_val()?.get_dict()?;
 
@@ -1436,7 +1451,7 @@ fn lib_dict_set(mut args: Vec<ValRef>, _: &Rc<RefCell<Scope>>) -> Result<ValRef,
     }
 
     drop(dictmut);
-    Ok(ValRef::Dict(dict))
+    Ok((ValRef::Dict(dict), scope))
 }
 
 /*
@@ -1467,7 +1482,7 @@ d.x -> 10
 (mutate 'd dict-mutate 'x - 3)
 d.x -> 7
 */
-fn lib_dict_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<ValRef, StackTrace> {
+fn lib_dict_mutate(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     if args.len() < 3 {
         return Err(StackTrace::from_str("Not enough arguments"));
     }
@@ -1495,10 +1510,10 @@ fn lib_dict_mutate(mut args: Vec<ValRef>, scope: &Rc<RefCell<Scope>>) -> Result<
 
     let func = mem::replace(&mut args[0], val);
 
-    let res = eval::call(&func, args, scope)?;
+    let (res, scope) = eval::call(&func, args, scope)?;
     dict.borrow_mut().insert(name.as_ref().clone(), res);
 
-    Ok(ValRef::Dict(dict))
+    Ok((ValRef::Dict(dict), scope))
 }
 
 pub struct StdIo {

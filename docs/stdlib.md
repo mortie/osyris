@@ -803,11 +803,10 @@ The return value is whatever the last function call returned.
 
 Examples:
 
-    (def 'l (list 1 2 3))
-    (def 'sum 0)
+    (def 'l (list 1 2 3 99))
     (list-for l (lambda 'el {
-        (mutate 'sum + el)
-    })) -> 6
+        el
+    })) -> 99
 
 ---
 

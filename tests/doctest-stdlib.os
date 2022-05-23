@@ -343,11 +343,10 @@
 })
 
 (test-case 'list-for {
-	(def 'l (list 1 2 3))
-	(def 'sum 0)
+	(def 'l (list 1 2 3 99))
 	(asserteq (list-for l (lambda 'el {
-		(mutate 'sum + el)
-	})) 6)
+		el
+	})) 99)
 })
 
 (test-case 'list-len {
