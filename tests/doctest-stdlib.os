@@ -349,6 +349,14 @@
 	})) 99)
 })
 
+(test-case 'list-reduce {
+	(def 'l (list 1 2 3 10))
+	(asserteq (list-reduce l 0 (lambda 'el 'sum {
+		[sum + el]
+	})) 16)
+	(asserteq (list-reduce (list 10 20) 1 *) 200)
+})
+
 (test-case 'list-len {
 	(asserteq (list-len (list)) 0)
 	(asserteq (list-len (list 1 2 3)) 3)

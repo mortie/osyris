@@ -1370,6 +1370,33 @@ fn lib_list_for(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncRes
 }
 
 /*
+@(list-reduce l:list acc:any f:func) -> any
+
+Reduce over the list, calling the function with every value and the accumulator.
+
+Examples:
+(def 'l (list 1 2 3 10))
+(list-reduce l 0 (lambda 'el 'sum {
+    [sum + el]
+})) -> 16
+(list-reduce (list 10 20) 1 *) -> 200
+*/
+fn lib_list_reduce(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+    let mut args = args.drain(0..);
+
+    let lst = args.next_val()?.get_list()?;
+    let mut acc = args.next_val()?;
+    let func = args.next_val()?;
+    args.done()?;
+
+    for idx in 0..lst.borrow().len() {
+        (acc, scope) = eval::call(&func, vec![lst.borrow()[idx].clone(), acc], scope)?;
+    }
+
+    Ok((acc, scope))
+}
+
+/*
 @(list-len l:list) -> number
 
 Get the length of a list.
@@ -1585,6 +1612,7 @@ pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
     s.put_func("list-map", Rc::new(lib_list_map));
     s.put_func("list-last", Rc::new(lib_list_last));
     s.put_func("list-for", Rc::new(lib_list_for));
+    s.put_func("list-reduce", Rc::new(lib_list_reduce));
     s.put_func("list-len", Rc::new(lib_list_len));
 
     s.put_func("dict", Rc::new(lib_dict));

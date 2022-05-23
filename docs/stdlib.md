@@ -44,6 +44,7 @@
 * [: list-map](#-list-map)
 * [: list-last](#-list-last)
 * [: list-for](#-list-for)
+* [: list-reduce](#-list-reduce)
 * [: list-len](#-list-len)
 * [: dict](#-dict)
 * [: dict-set](#-dict-set)
@@ -807,6 +808,22 @@ Examples:
     (list-for l (lambda 'el {
         el
     })) -> 99
+
+---
+
+### : list-reduce
+
+    (list-reduce l:list acc:any f:func) -> any
+
+Reduce over the list, calling the function with every value and the accumulator.
+
+Examples:
+
+    (def 'l (list 1 2 3 10))
+    (list-reduce l 0 (lambda 'el 'sum {
+        [sum + el]
+    })) -> 16
+    (list-reduce (list 10 20) 1 *) -> 200
 
 ---
 
