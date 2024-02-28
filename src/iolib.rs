@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{PortVal, Scope, StackTrace, ValRef, FuncResult};
+use super::eval::{FuncResult, PortVal, Scope, StackTrace, ValRef};
 use std::cell::RefCell;
 use std::fs;
 use std::io;
@@ -165,7 +165,10 @@ pub fn lib_exec(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
 
     match cmd.spawn() {
         Err(err) => Err(StackTrace::from_string(format!("exec: {}", err))),
-        Ok(child) => Ok((ValRef::Port(Rc::new(RefCell::new(ChildProc { c: child }))), scope)),
+        Ok(child) => Ok((
+            ValRef::Port(Rc::new(RefCell::new(ChildProc { c: child }))),
+            scope,
+        )),
     }
 }
 

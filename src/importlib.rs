@@ -1,5 +1,5 @@
 use super::bstring::BString;
-use super::eval::{eval, FuncArgs, Scope, StackTrace, ValRef, FuncResult};
+use super::eval::{eval, FuncArgs, FuncResult, Scope, StackTrace, ValRef};
 use super::parse;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -77,11 +77,7 @@ impl Import for DefaultImporter {
     }
 }
 
-fn import(
-    ctx: &Rc<ImportCtx>,
-    name: &BString,
-    mut scope: Rc<RefCell<Scope>>,
-) -> FuncResult {
+fn import(ctx: &Rc<ImportCtx>, name: &BString, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
     let (abspath, code) = match ctx.importer.borrow().import(ctx, name) {
         ImportResult::Err(err) => return Err(err),
         ImportResult::ValRef(val) => return Ok((val, scope)),
@@ -99,8 +95,7 @@ fn import(
     ));
     init_with_importer(&scope, childctx);
 
-    let mut reader =
-        parse::Reader::new(code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
+    let mut reader = parse::Reader::new(code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
 
     let mut retval = ValRef::None;
     loop {

@@ -1,4 +1,4 @@
-use super::eval::{Scope, StackTrace, ValRef, FuncResult};
+use super::eval::{FuncResult, Scope, StackTrace, ValRef};
 use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
@@ -23,12 +23,7 @@ where
         }
         ValRef::String(s) => {
             name = format!("v{:p}", s.as_ref());
-            writeln!(
-                w,
-                "{} [label=\"string rc={}\"]",
-                name,
-                Rc::strong_count(s)
-            )?;
+            writeln!(w, "{} [label=\"string rc={}\"]", name, Rc::strong_count(s))?;
             writeln!(w, "{}c [label={:?} shape=box]", name, s.as_ref())?;
             writeln!(w, "{} -> {}c [label=\"::content\"]", name, name)?;
         }
@@ -62,12 +57,7 @@ where
         }
         ValRef::Lambda(l) => {
             name = format!("v{:p}", l.as_ref());
-            writeln!(
-                w,
-                "{} [label=\"lambda rc={}\"]",
-                name,
-                Rc::strong_count(l)
-            )?;
+            writeln!(w, "{} [label=\"lambda rc={}\"]", name, Rc::strong_count(l))?;
         }
         ValRef::Binding(b, func) => {
             name = parent;
@@ -93,12 +83,7 @@ where
         }
         ValRef::Native(n) => {
             name = format!("v{:p}", n.as_ref());
-            writeln!(
-                w,
-                "{} [label=\"native rc={}\"]",
-                name,
-                Rc::strong_count(n)
-            )?;
+            writeln!(w, "{} [label=\"native rc={}\"]", name, Rc::strong_count(n))?;
         }
         ValRef::Port(p) => {
             name = format!("v{:p}", p.as_ref());

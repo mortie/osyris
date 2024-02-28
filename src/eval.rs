@@ -4,8 +4,8 @@ use super::bstring::BString;
 use std::any::Any;
 use std::cell::RefCell;
 use std::cmp::PartialEq;
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::rc::Rc;
@@ -147,8 +147,10 @@ impl ValRef {
                 for key in a.keys() {
                     let aval = &a[key];
                     match b.get(key) {
-                        Some(bval) => if !ValRef::equals(aval, bval) {
-                            return false;
+                        Some(bval) => {
+                            if !ValRef::equals(aval, bval) {
+                                return false;
+                            }
                         }
                         None => return false,
                     }
@@ -158,8 +160,9 @@ impl ValRef {
             }
             (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
             (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
-            (ValRef::Binding(a1, a2), ValRef::Binding(b1, b2)) =>
-                Rc::ptr_eq(a1, b1) && Rc::ptr_eq(a2, b2),
+            (ValRef::Binding(a1, a2), ValRef::Binding(b1, b2)) => {
+                Rc::ptr_eq(a1, b1) && Rc::ptr_eq(a2, b2)
+            }
             (ValRef::Lazy(a), ValRef::Lazy(b)) => Rc::ptr_eq(a, b),
             (ValRef::ProtectedLazy(a), ValRef::ProtectedLazy(b)) => Rc::ptr_eq(a, b),
             (ValRef::Native(a), ValRef::Native(b)) => Rc::ptr_eq(a, b),
@@ -432,11 +435,7 @@ impl Default for Scope {
     }
 }
 
-pub fn call(
-    func: &ValRef,
-    mut args: Vec<ValRef>,
-    scope: Rc<RefCell<Scope>>,
-) -> FuncResult {
+pub fn call(func: &ValRef, mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     match &func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Block(exprs) => eval_multiple(&exprs[..], scope),
@@ -513,10 +512,7 @@ pub fn call(
     }
 }
 
-pub fn eval_call(
-    exprs: &[ast::Expression],
-    mut scope: Rc<RefCell<Scope>>,
-) -> FuncResult {
+pub fn eval_call(exprs: &[ast::Expression], mut scope: Rc<RefCell<Scope>>) -> FuncResult {
     if exprs.is_empty() {
         return Err(StackTrace::from_str("Call list has no elements"));
     }
@@ -556,12 +552,10 @@ pub fn eval(expr: &ast::Expression, scope: Rc<RefCell<Scope>>) -> FuncResult {
                 name
             ))),
         },
-        ast::Expression::Call(exprs, loc) => {
-            match eval_call(exprs, scope) {
-                Ok(res) => Ok(res),
-                Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
-            }
-        }
+        ast::Expression::Call(exprs, loc) => match eval_call(exprs, scope) {
+            Ok(res) => Ok(res),
+            Err(trace) => Err(trace.push(loc.clone(), format!("{}", exprs[0]))),
+        },
         ast::Expression::Block(exprs) => Ok((ValRef::Block(exprs.clone()), scope)),
     }?;
 
@@ -574,10 +568,7 @@ pub fn eval(expr: &ast::Expression, scope: Rc<RefCell<Scope>>) -> FuncResult {
     }
 }
 
-pub fn eval_multiple(
-    exprs: &[ast::Expression],
-    scope: Rc<RefCell<Scope>>,
-) -> FuncResult {
+pub fn eval_multiple(exprs: &[ast::Expression], scope: Rc<RefCell<Scope>>) -> FuncResult {
     let (mut retval, mut scope) = (ValRef::None, scope);
     for expr in exprs {
         drop(retval);

@@ -1,14 +1,14 @@
 use super::bstring::BString;
+use super::eval::{self, FuncArgs, FuncResult, PortVal, Scope, StackTrace, ValRef};
 use super::parse;
-use super::eval::{self, FuncArgs, PortVal, Scope, FuncResult, StackTrace, ValRef};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
+use std::iter;
 use std::mem;
 use std::rc::Rc;
 use std::vec;
-use std::iter;
 
 /*
 @(print (arg:any)*) -> none
@@ -610,7 +610,9 @@ fn lib_mutate(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     args[0] = val;
 
     let (new_val, new_scope) = eval::call(&func, args, scope)?;
-    new_scope.borrow_mut().insert(name.as_ref().clone(), new_val.clone());
+    new_scope
+        .borrow_mut()
+        .insert(name.as_ref().clone(), new_val.clone());
     Ok((new_val, new_scope))
 }
 
@@ -1029,7 +1031,7 @@ fn lib_string(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     }
 
     if args.len() == 1 && matches!(args[0], ValRef::String(..)) {
-        return Ok((args.pop().unwrap(), scope))
+        return Ok((args.pop().unwrap(), scope));
     }
 
     let args = args.drain(0..);
@@ -1106,10 +1108,13 @@ fn lib_lambda(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
         None => return Err(StackTrace::from_str("Expected block")),
     };
 
-    Ok((ValRef::Lambda(Rc::new(eval::LambdaVal {
-        args: argnames,
-        body: block,
-    })), scope))
+    Ok((
+        ValRef::Lambda(Rc::new(eval::LambdaVal {
+            args: argnames,
+            body: block,
+        })),
+        scope,
+    ))
 }
 
 /*
@@ -1337,7 +1342,7 @@ fn lib_list_last(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult
     let lst = lst.borrow();
     match lst.last() {
         Some(v) => Ok((v.clone(), scope)),
-        None => Ok((ValRef::None, scope))
+        None => Ok((ValRef::None, scope)),
     }
 }
 
