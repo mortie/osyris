@@ -77,7 +77,7 @@ impl Import for DefaultImporter {
     }
 }
 
-fn import(ctx: &Rc<ImportCtx>, name: &BString, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn import(ctx: &Rc<ImportCtx>, name: &BString, mut scope: Scope) -> FuncResult {
     let (abspath, code) = match ctx.importer.borrow().import(ctx, name) {
         ImportResult::Err(err) => return Err(err),
         ImportResult::ValRef(val) => return Ok((val, scope)),
@@ -87,13 +87,13 @@ fn import(ctx: &Rc<ImportCtx>, name: &BString, mut scope: Rc<RefCell<Scope>>) ->
     let mut dirpath = abspath.clone();
     dirpath.pop();
 
-    scope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
+    scope = scope.subscope();
 
     let childctx = Rc::new(ImportCtx::new(
         ctx.importer.clone(),
         BString::from_os_str(dirpath.as_os_str()),
     ));
-    init_with_importer(&scope, childctx);
+    scope = init_with_importer(scope, childctx);
 
     let mut reader = parse::Reader::new(code.as_bytes(), BString::from_os_str(abspath.as_os_str()));
 
@@ -129,7 +129,7 @@ fn import(ctx: &Rc<ImportCtx>, name: &BString, mut scope: Rc<RefCell<Scope>>) ->
 fn lib_import(
     importctx: &Rc<ImportCtx>,
     mut args: Vec<ValRef>,
-    scope: Rc<RefCell<Scope>>,
+    scope: Scope,
 ) -> FuncResult {
     let mut args = args.drain(0..);
 
@@ -139,12 +139,12 @@ fn lib_import(
     import(importctx, path.as_ref(), scope)
 }
 
-pub fn init_with_importer(scope: &Rc<RefCell<Scope>>, ctx: Rc<ImportCtx>) {
-    let mut s = scope.borrow_mut();
-    s.put_func("import", Rc::new(move |a, s| lib_import(&ctx, a, s)));
+pub fn init_with_importer(mut s: Scope, ctx: Rc<ImportCtx>) -> Scope {
+    s = s.put_func("import", Rc::new(move |a, s| lib_import(&ctx, a, s)));
+    s
 }
 
-pub fn init_with_cwd(scope: &Rc<RefCell<Scope>>, cwd: BString) {
+pub fn init_with_cwd(scope: Scope, cwd: BString) -> Scope {
     init_with_importer(
         scope,
         Rc::new(ImportCtx::new(
@@ -154,8 +154,8 @@ pub fn init_with_cwd(scope: &Rc<RefCell<Scope>>, cwd: BString) {
     )
 }
 
-pub fn init_with_path(scope: &Rc<RefCell<Scope>>, path: BString) {
+pub fn init_with_path(scope: Scope, path: BString) -> Scope {
     let mut dirpath = path.to_path();
     dirpath.pop();
-    init_with_cwd(scope, BString::from_os_str(dirpath.as_os_str()));
+    init_with_cwd(scope, BString::from_os_str(dirpath.as_os_str()))
 }

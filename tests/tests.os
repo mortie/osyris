@@ -20,7 +20,8 @@
 	})
 }))
 
+(run "doctest-stdlib.os")
 (run "dict.os")
 (run "list.os")
 (run "fib.os")
-(run "doctest-stdlib.os")
+(run "scope.os")

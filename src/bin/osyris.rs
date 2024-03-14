@@ -1,10 +1,8 @@
 use osyris::{bstring::BString, dotlib, eval, importlib, iolib, parse, stdlib};
-use std::cell::RefCell;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::process;
-use std::rc::Rc;
 
 fn usage(argv0: &OsStr) {
     println!("Usage: {:?} [options] <path>", argv0);
@@ -24,7 +22,9 @@ fn main() {
         if !dashes && (arg == "--help" || arg == "-h") {
             usage(&argv0);
             return;
-        } else if !dashes && (arg == "--print-ast") {
+        }
+        
+        if !dashes && (arg == "--print-ast") {
             print_ast = true;
         } else if !dashes && arg == "--" {
             dashes = true;
@@ -54,13 +54,13 @@ fn main() {
 
     let mut reader = parse::Reader::new(&string, path.clone());
 
-    let rootscope = Rc::new(RefCell::new(eval::Scope::new()));
-    stdlib::init(&rootscope);
-    iolib::init(&rootscope);
-    importlib::init_with_path(&rootscope, path);
-    dotlib::init(&rootscope);
+    let mut rootscope = eval::Scope::new();
+    rootscope = stdlib::init(rootscope);
+    rootscope = iolib::init(rootscope);
+    rootscope = importlib::init_with_path(rootscope, path);
+    rootscope = dotlib::init(rootscope);
 
-    let mut scope = Rc::new(RefCell::new(eval::Scope::new_with_parent(rootscope)));
+    let mut scope = rootscope.subscope();
 
     loop {
         let expr = match parse::parse(&mut reader) {

@@ -4,7 +4,6 @@ use super::bstring::BString;
 use std::any::Any;
 use std::cell::RefCell;
 use std::cmp::PartialEq;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
@@ -38,9 +37,9 @@ impl FuncArgs for vec::Drain<'_, ValRef> {
     }
 }
 
-pub type FuncResult = Result<(ValRef, Rc<RefCell<Scope>>), StackTrace>;
+pub type FuncResult = Result<(ValRef, Scope), StackTrace>;
 pub type DictVal = HashMap<BString, ValRef>;
-pub type FuncVal = dyn Fn(Vec<ValRef>, Rc<RefCell<Scope>>) -> FuncResult;
+pub type FuncVal = dyn Fn(Vec<ValRef>, Scope) -> FuncResult;
 
 pub struct LambdaVal {
     pub args: Vec<BString>,
@@ -350,82 +349,117 @@ impl fmt::Display for StackTrace {
     }
 }
 
-#[derive(Clone)]
+pub struct ScopeImpl {
+    pub parent: Option<Rc<ScopeImpl>>,
+    pub map: Option<Rc<RefCell<HashMap<BString, ValRef>>>>,
+}
+
+impl ScopeImpl {
+    pub fn lookup(&self, name: &BString) -> Option<ValRef> {
+        if let Some(map) = &self.map {
+            if let Some(val) = map.borrow().get(name) {
+                return Some(val.clone());
+            }
+        }
+
+        if let Some(parent) = &self.parent {
+            return parent.lookup(name);
+        }
+
+        None
+    }
+}
+
 pub struct Scope {
-    pub parent: Option<Rc<RefCell<Scope>>>,
-    pub map: HashMap<BString, ValRef>,
+    pub m: Rc<ScopeImpl>,
 }
 
 impl Scope {
     pub fn new() -> Self {
         Self {
-            parent: None,
-            map: HashMap::new(),
+            m: Rc::new(ScopeImpl {
+                parent: None,
+                map: None,
+            }),
         }
     }
 
-    pub fn new_with_parent(parent: Rc<RefCell<Scope>>) -> Self {
+    pub fn subscope(&self) -> Self {
         Self {
-            parent: Some(parent),
-            map: HashMap::new(),
+            m: Rc::new(ScopeImpl {
+                parent: Some(self.m.clone()),
+                map: None,
+            })
         }
     }
 
     pub fn lookup(&self, name: &BString) -> Option<ValRef> {
-        match self.map.get(name) {
-            Some(r) => Some(r.clone()),
-            None => match &self.parent {
-                Some(parent) => parent.borrow().lookup(name),
-                None => None,
-            },
+        self.m.lookup(name)
+    }
+
+    pub fn lookup_shallow(&self, name: &BString) -> Option<ValRef> {
+        if let Some(map) = &self.m.map {
+            return map.borrow().get(name).map(|x| x.clone());
+        }
+
+        None
+    }
+
+    // Erase a key from the scope if doing so wouldn't require creating a new scope.
+    // If erasing would require creating a new scope, it's left 
+    pub fn maybe_inplace_erase(&mut self, name: &BString) {
+        if let Some(map) = &self.m.map {
+            if Rc::strong_count(map) == 1 && Rc::strong_count(&self.m) == 1 {
+                map.borrow_mut().remove(name);
+            }
         }
     }
 
-    pub fn rlookup(
-        scope: &Rc<RefCell<Scope>>,
-        name: &BString,
-    ) -> Option<(ValRef, Rc<RefCell<Scope>>)> {
-        match scope.borrow().map.get(name) {
-            Some(r) => Some((r.clone(), scope.clone())),
-            None => match &scope.borrow().parent {
-                Some(parent) => Scope::rlookup(parent, name),
-                None => None,
-            },
+    pub fn insert(self, name: BString, val: ValRef) -> Self {
+        if let Some(map) = &self.m.map {
+            if Rc::strong_count(map) == 1 && Rc::strong_count(&self.m) == 1 {
+                map.borrow_mut().insert(name, val);
+                self
+            } else {
+                let mut map = map.borrow().clone();
+                map.insert(name, val);
+                Self {
+                    m: Rc::new(ScopeImpl {
+                        parent: self.m.parent.clone(),
+                        map: Some(Rc::new(RefCell::new(map))),
+                    })
+                }
+            }
+        } else {
+            let mut map = HashMap::new();
+            map.insert(name, val);
+            Self {
+                m: Rc::new(ScopeImpl {
+                    parent: self.m.parent.clone(),
+                    map: Some(Rc::new(RefCell::new(map))),
+                }),
+            }
         }
     }
 
-    pub fn insert(&mut self, name: BString, val: ValRef) {
-        self.map.insert(name, val);
-    }
-
-    pub fn replace(&mut self, name: BString, val: ValRef) -> bool {
-        if let Entry::Occupied(mut e) = self.map.entry(name.clone()) {
-            e.insert(val);
-            true
-        } else if let Some(parent) = &self.parent {
-            parent.borrow_mut().replace(name, val)
+    pub fn has_shallow(&self, name: &BString) -> bool {
+        if let Some(map) = &self.m.map {
+            map.borrow().contains_key(name)
         } else {
             false
         }
     }
 
-    pub fn remove(&mut self, name: &BString) {
-        self.map.remove(name);
+    pub fn put(self, name: &str, val: ValRef) -> Self {
+        self.insert(BString::from_str(name), val)
     }
 
-    pub fn put(&mut self, name: &str, val: ValRef) {
-        self.map.insert(BString::from_str(name), val);
+    pub fn put_lazy(self, name: &str, func: Rc<FuncVal>) -> Self {
+        self.insert(BString::from_str(name), ValRef::Lazy(Rc::new(ValRef::Func(func))))
     }
 
-    pub fn put_lazy(&mut self, name: &str, func: Rc<FuncVal>) {
-        self.map.insert(
-            BString::from_str(name),
-            ValRef::Lazy(Rc::new(ValRef::Func(func))),
-        );
-    }
-
-    pub fn put_func(&mut self, name: &str, func: Rc<FuncVal>) {
-        self.map.insert(BString::from_str(name), ValRef::Func(func));
+    pub fn put_func(self, name: &str, func: Rc<FuncVal>) -> Self {
+        self.insert(BString::from_str(name), ValRef::Func(func))
     }
 }
 
@@ -435,37 +469,32 @@ impl Default for Scope {
     }
 }
 
-pub fn call(func: &ValRef, mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+pub fn call(func: &ValRef, mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     match &func {
         ValRef::Func(func) => func(args, scope),
         ValRef::Block(exprs) => eval_multiple(&exprs[..], scope),
         ValRef::Lambda(l) => {
             let mut args = args.drain(0..);
-            let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
 
-            let mut ss = subscope.borrow_mut();
+            let mut subscope = scope.subscope();
             for name in &l.args {
                 let val = match args.next() {
                     Some(val) => val,
                     None => break,
                 };
 
-                ss.insert(name.clone(), val);
+                subscope = subscope.insert(name.clone(), val);
             }
 
-            drop(ss);
             let (retval, _) = eval_multiple(&l.body[..], subscope)?;
             Ok((retval, scope))
         }
         ValRef::Binding(b, func) => {
-            let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
-
-            let mut ss = subscope.borrow_mut();
+            let mut subscope = scope.subscope();
             for (key, val) in b.as_ref() {
-                ss.insert(key.clone(), val.clone());
+                subscope = subscope.insert(key.clone(), val.clone());
             }
 
-            drop(ss);
             call(func.as_ref(), args, subscope)
         }
         ValRef::List(list) => {
@@ -512,7 +541,7 @@ pub fn call(func: &ValRef, mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> 
     }
 }
 
-pub fn eval_call(exprs: &[ast::Expression], mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+pub fn eval_call(exprs: &[ast::Expression], mut scope: Scope) -> FuncResult {
     if exprs.is_empty() {
         return Err(StackTrace::from_str("Call list has no elements"));
     }
@@ -529,23 +558,22 @@ pub fn eval_call(exprs: &[ast::Expression], mut scope: Rc<RefCell<Scope>>) -> Fu
     call(&func, args, scope)
 }
 
-fn resolve_lazy(lazy: &ValRef, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn resolve_lazy(lazy: &ValRef, scope: Scope) -> FuncResult {
     match lazy {
         ValRef::Func(func) => func(Vec::new(), scope),
         ValRef::Lambda(l) => {
-            let subscope = Rc::new(RefCell::new(Scope::new_with_parent(scope.clone())));
-            eval_multiple(&l.body[..], subscope)
+            eval_multiple(&l.body[..], scope.subscope())
         }
         ValRef::Block(exprs) => eval_multiple(exprs, scope),
         _ => Ok((lazy.clone(), scope)),
     }
 }
 
-pub fn eval(expr: &ast::Expression, scope: Rc<RefCell<Scope>>) -> FuncResult {
+pub fn eval(expr: &ast::Expression, scope: Scope) -> FuncResult {
     let (mut val, mut scope) = match expr {
         ast::Expression::String(s) => Ok((ValRef::String(Rc::new(s.clone())), scope)),
         ast::Expression::Number(num) => Ok((ValRef::Number(*num), scope)),
-        ast::Expression::Lookup(name) => match scope.clone().borrow().lookup(name) {
+        ast::Expression::Lookup(name) => match scope.lookup(name) {
             Some(val) => Ok((val, scope)),
             None => Err(StackTrace::from_string(format!(
                 "Variable '{}' doesn't exist",
@@ -568,7 +596,7 @@ pub fn eval(expr: &ast::Expression, scope: Rc<RefCell<Scope>>) -> FuncResult {
     }
 }
 
-pub fn eval_multiple(exprs: &[ast::Expression], scope: Rc<RefCell<Scope>>) -> FuncResult {
+pub fn eval_multiple(exprs: &[ast::Expression], scope: Scope) -> FuncResult {
     let (mut retval, mut scope) = (ValRef::None, scope);
     for expr in exprs {
         drop(retval);

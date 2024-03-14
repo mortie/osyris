@@ -44,7 +44,7 @@ impl PortVal for TextFile {
     }
 }
 
-pub fn lib_open(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+pub fn lib_open(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.len() != 1 {
         return Err(StackTrace::from_str("'open' requires 1 argument"));
     }
@@ -71,7 +71,7 @@ pub fn lib_open(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     Ok((ValRef::Port(Rc::new(RefCell::new(TextFile { f }))), scope))
 }
 
-pub fn lib_create(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+pub fn lib_create(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.len() != 1 {
         return Err(StackTrace::from_str("'create' requires 1 argument"));
     }
@@ -136,7 +136,7 @@ impl PortVal for ChildProc {
     }
 }
 
-pub fn lib_exec(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+pub fn lib_exec(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Err(StackTrace::from_str("'exec' requires at least 1 argument"));
     }
@@ -172,9 +172,9 @@ pub fn lib_exec(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
     }
 }
 
-pub fn init(scope: &Rc<RefCell<Scope>>) {
-    let mut s = scope.borrow_mut();
-    s.put_func("open", Rc::new(lib_open));
-    s.put_func("create", Rc::new(lib_create));
-    s.put_func("exec", Rc::new(lib_exec));
+pub fn init(mut s: Scope) -> Scope {
+    s = s.put_func("open", Rc::new(lib_open));
+    s = s.put_func("create", Rc::new(lib_create));
+    s = s.put_func("exec", Rc::new(lib_exec));
+    s
 }

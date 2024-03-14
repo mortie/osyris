@@ -1,5 +1,6 @@
+use crate::eval::ScopeImpl;
+
 use super::eval::{FuncResult, Scope, StackTrace, ValRef};
-use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
 
@@ -94,59 +95,55 @@ where
     Ok(name)
 }
 
-fn write_scope<W>(w: &mut W, scope: &Rc<RefCell<Scope>>) -> Result<(), io::Error>
+fn write_scope<W>(w: &mut W, scope: &ScopeImpl) -> Result<(), io::Error>
 where
     W: io::Write,
 {
-    writeln!(w, "s{:p} [label=\"scope\"]", scope.as_ref())?;
+    writeln!(w, "s{:p} [label=\"scope\"]", scope)?;
 
-    let s = scope.borrow();
-    for (idx, (key, val)) in s.map.iter().enumerate() {
-        let name = write_val(w, val, format!("s{:p}v{}", scope.as_ref(), idx))?;
-        writeln!(
-            w,
-            "s{:p} -> {} [label={:?} type=s]",
-            scope.as_ref(),
-            name,
-            key
-        )?;
+    if let Some(map) = &scope.map {
+        for (idx, (key, val)) in map.borrow().iter().enumerate() {
+            let name = write_val(w, val, format!("s{:p}v{}", scope, idx))?;
+            writeln!(
+                w,
+                "s{:p} -> {} [label={:?} type=s]",
+                scope,
+                name,
+                key,
+            )?;
+        }
     }
 
-    match &scope.borrow().parent {
-        None => (),
-        Some(parent) => {
-            if parent.borrow().parent.is_some() {
-                write_scope(w, parent)?;
-                writeln!(
-                    w,
-                    "s{:p} -> s{:p} [label=\"::parent\"]",
-                    scope.as_ref(),
-                    parent.as_ref()
-                )?;
-            }
-        }
-    };
+    if let Some(parent) = &scope.parent {
+        write_scope(w, parent)?;
+        writeln!(
+            w,
+            "s{:p} -> s{:p} [label=\"::parent\"]",
+            scope,
+            parent.as_ref()
+        )?;
+    }
 
     Ok(())
 }
 
-pub fn write_dot<W>(w: &mut W, scope: &Rc<RefCell<Scope>>) -> Result<(), io::Error>
+fn write_dot<W>(w: &mut W, scope: &Scope) -> Result<(), io::Error>
 where
     W: io::Write,
 {
     writeln!(w, "digraph d {{")?;
-    write_scope(w, scope)?;
+    write_scope(w, scope.m.as_ref())?;
     writeln!(w, "}}")
 }
 
-fn lib_print_scope_dot(_: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_print_scope_dot(_: Vec<ValRef>, scope: Scope) -> FuncResult {
     match write_dot(&mut io::stdout(), &scope) {
         Ok(()) => Ok((ValRef::None, scope)),
         Err(err) => Err(StackTrace::from_string(err.to_string())),
     }
 }
 
-pub fn init(scope: &Rc<RefCell<Scope>>) {
-    let mut s = scope.borrow_mut();
-    s.put_func("print-scope-dot", Rc::new(lib_print_scope_dot));
+pub fn init(mut s: Scope) -> Scope {
+    s = s.put_func("print-scope-dot", Rc::new(lib_print_scope_dot));
+    s
 }

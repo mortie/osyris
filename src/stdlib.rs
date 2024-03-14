@@ -15,10 +15,10 @@ use std::vec;
 
 Print the arguments to 'stdout', separated by a space.
 */
-fn lib_print(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_print(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let args = args.drain(0..);
 
-    let stdout = match scope.borrow().lookup(&BString::from_str("stdout")) {
+    let stdout = match scope.lookup(&BString::from_str("stdout")) {
         Some(stdout) => match stdout {
             ValRef::Port(port) => port,
             _ => {
@@ -71,7 +71,7 @@ Examples:
 (not true) -> false
 (not false) -> true
 */
-fn lib_not(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_not(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let arg = args.next_val()?;
@@ -90,7 +90,7 @@ Examples:
 (mod 9 2) -> 1
 (mod 8 2) -> 0
 */
-fn lib_mod(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_mod(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let a = args.next_val()?.get_number()?;
@@ -111,7 +111,7 @@ Examples:
 (+ 1 2 3 4 5) -> 15
 (+) -> 0
 */
-fn lib_add(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_add(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Number(0.0), scope));
     }
@@ -137,7 +137,7 @@ Examples:
 (- 10 2 3) -> 5
 (-) -> 0
 */
-fn lib_sub(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_sub(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Number(0.0), scope));
     } else if args.len() == 1 {
@@ -164,7 +164,7 @@ Examples:
 (* 10 2 3) -> 60
 (*) -> 0
 */
-fn lib_mul(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_mul(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Number(0.0), scope));
     }
@@ -190,7 +190,7 @@ Examples:
 [200 / 10] -> 20
 (/) -> 0
 */
-fn lib_div(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_div(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Number(0.0), scope));
     } else if args.len() == 1 {
@@ -225,7 +225,7 @@ Examples:
     (list (list (list 1) (list 2)))) -> true
 (== (list 1 2 3) (list 1 2 4)) -> false
 */
-fn lib_equals(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_equals(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.len() <= 1 {
         return Ok((ValRef::Bool(true), scope));
     }
@@ -252,7 +252,7 @@ Examples:
 (!= "11" 11) -> true
 (!=) -> false
 */
-fn lib_nequals(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_nequals(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     match lib_equals(args, scope) {
         Ok((ValRef::Bool(true), s)) => Ok((ValRef::Bool(false), s)),
         Ok((ValRef::Bool(false), s)) => Ok((ValRef::Bool(true), s)),
@@ -274,7 +274,7 @@ Examples:
 (<= 10) -> true
 (<=) -> true
 */
-fn lib_lteq(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_lteq(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Bool(true), scope));
     }
@@ -302,7 +302,7 @@ Examples:
 (< 10) -> true
 (<) -> true
 */
-fn lib_lt(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_lt(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Bool(true), scope));
     }
@@ -330,7 +330,7 @@ Examples:
 (>= 10) -> true
 (>=) -> true
 */
-fn lib_gteq(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_gteq(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Bool(true), scope));
     }
@@ -358,7 +358,7 @@ Examples:
 (> 10) -> true
 (>) -> true
 */
-fn lib_gt(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_gt(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::Bool(true), scope));
     }
@@ -385,7 +385,7 @@ Examples:
 (|| true false true) -> true
 (||) -> false
 */
-fn lib_or(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_or(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     for item in args {
         if item.to_bool() {
             return Ok((ValRef::Bool(true), scope));
@@ -409,7 +409,7 @@ Examples:
 (&& true false true) -> false
 (&&) -> true
 */
-fn lib_and(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_and(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     for item in args {
         if !item.to_bool() {
             return Ok((ValRef::Bool(false), scope));
@@ -431,7 +431,7 @@ Examples:
 (?? none none none 3) -> 3
 (??) -> none
 */
-fn lib_first(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_first(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     for arg in args.drain(0..) {
         match arg {
             ValRef::None => (),
@@ -454,17 +454,15 @@ x -> 10
 (def 'x 40 'y 50) -> none
 (+ x y) -> 90
 */
-fn lib_def(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_def(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
-    let mut scope_mut = scope.borrow_mut();
     while args.has_next() {
         let key = args.next_val()?.get_string()?;
         let val = args.next_val()?;
-        scope_mut.insert(key.as_ref().clone(), val);
+        scope = scope.insert(key.as_ref().clone(), val);
     }
 
-    drop(scope_mut);
     Ok((ValRef::None, scope))
 }
 
@@ -486,7 +484,7 @@ Examples:
 (add 10 20) -> 30
 (add 9 10) -> 19
 */
-fn lib_func(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_func(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let name = args.next_val()?.get_string()?;
@@ -516,7 +514,7 @@ fn lib_func(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
         args: argnames,
         body: block,
     }));
-    scope.borrow_mut().insert(name.as_ref().clone(), val);
+    scope = scope.insert(name.as_ref().clone(), val);
 
     Ok((ValRef::None, scope))
 }
@@ -537,23 +535,23 @@ x -> 50
 })
 x -> 3
 */
-fn lib_set(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_set(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
-    let mut scope_mut = scope.borrow_mut();
     while args.has_next() {
         let key = args.next_val()?.get_string()?;
         let val = args.next_val()?;
 
-        if !scope_mut.replace(key.as_ref().clone(), val) {
+        if !scope.has_shallow(key.as_ref()) {
             return Err(StackTrace::from_string(format!(
                 "Variable '{}' doesn't exist",
                 key
             )));
         }
+
+        scope = scope.insert(key.as_ref().clone(), val);
     }
 
-    drop(scope_mut);
     Ok((ValRef::None, scope))
 }
 
@@ -579,41 +577,33 @@ x -> 10
 (mutate 'x + 5) -> 15
 x -> 15
 */
-fn lib_mutate(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_mutate(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     if args.len() < 2 {
         return Err(StackTrace::from_str("Not enough arguments"));
     }
 
     let name = args[0].clone().get_string()?;
-
-    let scope = if Rc::strong_count(&scope) == 1 {
-        scope
-    } else {
-        Rc::new(RefCell::new(scope.borrow().clone()))
-    };
-
-    let val = match scope.borrow().lookup(name.as_ref()) {
+    let val = match scope.lookup_shallow(name.as_ref()) {
         Some(val) => val,
         None => {
             return Err(StackTrace::from_string(format!(
-                "Variable '{}' doesn't exist",
+                "Variable '{}' doesn't exist in this scope",
                 name
             )))
         }
     };
 
-    scope.borrow_mut().remove(name.as_ref());
+    scope.maybe_inplace_erase(name.as_ref());
 
     // Replace the name and the mutator function with the value to be
     // passed as the first argument, so that we can re-use the args array
     let func = args.remove(1);
     args[0] = val;
 
-    let (new_val, new_scope) = eval::call(&func, args, scope)?;
-    new_scope
-        .borrow_mut()
-        .insert(name.as_ref().clone(), new_val.clone());
-    Ok((new_val, new_scope))
+    let new_val;
+    (new_val, scope) = eval::call(&func, args, scope)?;
+    scope = scope.insert(name.as_ref().clone(), new_val.clone());
+    Ok((new_val, scope))
 }
 
 /*
@@ -632,7 +622,7 @@ Examples:
 }) -> 40
 (if false {10}) -> none
 */
-fn lib_if(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_if(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let cond = args.next_val()?.to_bool();
@@ -669,7 +659,7 @@ Examples:
         [num + 1]}
 ) -> 100
 */
-fn lib_match(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_match(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     while args.has_next() {
@@ -710,7 +700,7 @@ index -> 4
 
 (while {false}) -> none
 */
-fn lib_while(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_while(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let cond = args.next_val()?;
@@ -746,7 +736,7 @@ Examples:
 ; Expressions may have side-effects, which is generally when you'd need 'do'
 (do (def 'x 10) [x + 5]) -> 15
 */
-fn lib_do(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_do(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if let Some(val) = args.pop() {
         Ok((val, scope))
     } else {
@@ -777,7 +767,7 @@ Examples:
 (def 'f (create-function))
 (f) -> 30
 */
-fn lib_bind(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_bind(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let mut map: HashMap<BString, ValRef> = HashMap::new();
@@ -803,21 +793,21 @@ Examples:
     [num + 5]
 }) -> 325
 */
-fn lib_with(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_with(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
-    let mut s = Scope::new_with_parent(scope.clone());
+    let mut subscope = scope.subscope();
     while args.len() > 1 {
         let key = args.next_val()?.get_string()?;
         let val = args.next_val()?;
 
-        s.insert(key.as_ref().clone(), val);
+        subscope = subscope.insert(key.as_ref().clone(), val);
     }
 
     let func = args.next_val()?;
     args.done()?;
 
-    eval::call(&func, vec![], Rc::new(RefCell::new(s)))
+    eval::call(&func, vec![], subscope)
 }
 
 /*
@@ -825,7 +815,7 @@ fn lib_with(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
 
 Read from a port.
 */
-fn lib_read(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_read(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let port = args.next_val()?.get_port()?;
@@ -849,7 +839,7 @@ fn lib_read(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
 
 Write to a port.
 */
-fn lib_write(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_write(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let port = args.next_val()?.get_port()?;
@@ -871,7 +861,7 @@ Seek a port. 'from' can be:
 * end: Seek from the end
 * current: Seek from the current position
 */
-fn lib_seek(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_seek(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let port = args.next_val()?.get_port()?;
@@ -909,7 +899,7 @@ Create an error. An error contains a value:
 * If 'error' is called with multiple arguments, they are concatenated together
   and the value is the resulting string.
 */
-fn lib_error(args: Vec<ValRef>, _: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_error(args: Vec<ValRef>, _: Scope) -> FuncResult {
     if args.is_empty() {
         Err(StackTrace::from_val(ValRef::None))
     } else if args.len() == 1 {
@@ -947,14 +937,14 @@ Examples:
     "An error occurred"
 })) -> "An error occurred"
 */
-fn lib_try(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_try(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let try_body = args.next_val()?;
     let catch_body = args.next_val()?;
     args.done()?;
 
-    match eval::call(&try_body, Vec::new(), scope.clone()) {
+    match eval::call(&try_body, Vec::new(), scope.subscope()) {
         Ok(res) => Ok(res),
         Err(err) => eval::call(&catch_body, vec![err.message], scope),
     }
@@ -971,7 +961,7 @@ Examples:
 (bool none) -> false
 (bool "hello") -> true
 */
-fn lib_bool(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_bool(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
     let arg = args.next_val()?;
     args.done()?;
@@ -993,7 +983,7 @@ Examples:
 (number true) -> 1
 (number "20") -> 20
 */
-fn lib_number(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_number(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
     let arg = args.next_val()?;
     args.done()?;
@@ -1025,7 +1015,7 @@ Examples:
 (string "There are " 10 " trees") -> "There are 10 trees"
 (string [3 + 5] " things") -> "8 things"
 */
-fn lib_string(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_string(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.is_empty() {
         return Ok((ValRef::String(Rc::new(BString::from_str(""))), scope));
     }
@@ -1061,7 +1051,7 @@ Examples:
 (def 'ten (lazy make-ten))
 ten -> 10
 */
-fn lib_lazy(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_lazy(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let val = args.next_val()?;
@@ -1084,7 +1074,7 @@ Examples:
 (add 5 7) -> 12
 [9 add 10] -> 19
 */
-fn lib_lambda(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_lambda(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let mut argnames: Vec<BString> = Vec::new();
@@ -1139,7 +1129,7 @@ l.1 -> 20
 l.[0 + 1] -> 20
 l.(+ 0 1) -> 20
 */
-fn lib_list(args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list(args: Vec<ValRef>, scope: Scope) -> FuncResult {
     Ok((ValRef::List(Rc::new(RefCell::new(args))), scope))
 }
 
@@ -1155,7 +1145,7 @@ l -> (list 10)
 (mutate 'l list-push 30 40)
 l -> (list 10 30 40)
 */
-fn lib_list_push(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_push(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1186,7 +1176,7 @@ l -> (list 10 20)
 (mutate 'l list-pop)
 l -> (list 10)
 */
-fn lib_list_pop(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_pop(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1216,7 +1206,7 @@ l -> (list 10 1 2 3)
 (mutate 'l list-insert 2 99 100)
 l -> (list 10 1 99 100 2 3)
 */
-fn lib_list_insert(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_insert(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1255,7 +1245,7 @@ l -> (list 1 2 3 4)
 (mutate 'l list-remove 1 3)
 l -> (list 1 4)
 */
-fn lib_list_remove(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_remove(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1290,7 +1280,7 @@ l -> (list 1 2 3)
 (mutate 'l list-map (lambda 'x {[x * 10]}))
 l -> (list 10 20 30)
 */
-fn lib_list_map(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_map(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1333,7 +1323,7 @@ Examples:
 (list-last (list 10 20)) -> 20
 (list-last (list)) -> none
 */
-fn lib_list_last(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_last(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1358,7 +1348,7 @@ Examples:
     el
 })) -> 99
 */
-fn lib_list_for(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_for(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1386,7 +1376,7 @@ Examples:
 })) -> 16
 (list-reduce (list 10 20) 1 *) -> 200
 */
-fn lib_list_reduce(mut args: Vec<ValRef>, mut scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_reduce(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let lst = args.next_val()?.get_list()?;
@@ -1410,7 +1400,7 @@ Examples:
 (list-len (list)) -> 0
 (list-len (list 1 2 3)) -> 3
 */
-fn lib_list_len(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_list_len(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
     let lst = args.next_val()?.get_list()?;
     args.done()?;
@@ -1440,7 +1430,7 @@ Examples:
 d.x -> 10
 d.y -> 20
 */
-fn lib_dict(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_dict(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     let mut dict: HashMap<BString, ValRef> = HashMap::new();
@@ -1464,7 +1454,7 @@ d -> (dict 'x 10 'y 20)
 (mutate 'd dict-set 'x 30)
 d -> (dict 'x 30 'y 20)
 */
-fn lib_dict_set(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_dict_set(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
     let dict = args.next_val()?.get_dict()?;
 
@@ -1514,7 +1504,7 @@ d.x -> 10
 (mutate 'd dict-mutate 'x - 3)
 d.x -> 7
 */
-fn lib_dict_mutate(mut args: Vec<ValRef>, scope: Rc<RefCell<Scope>>) -> FuncResult {
+fn lib_dict_mutate(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     if args.len() < 3 {
         return Err(StackTrace::from_str("Not enough arguments"));
     }
@@ -1554,75 +1544,76 @@ pub struct StdIo {
     pub stderr: Rc<RefCell<dyn PortVal>>,
 }
 
-pub fn init_with_stdio(scope: &Rc<RefCell<Scope>>, stdio: StdIo) {
-    let mut s = scope.borrow_mut();
-    s.put("stdin", ValRef::Port(stdio.stdin));
-    s.put("stdout", ValRef::Port(stdio.stdout));
-    s.put("stderr", ValRef::Port(stdio.stderr));
+pub fn init_with_stdio(mut s: Scope, stdio: StdIo) -> Scope {
+    s = s.put("stdin", ValRef::Port(stdio.stdin));
+    s = s.put("stdout", ValRef::Port(stdio.stdout));
+    s = s.put("stderr", ValRef::Port(stdio.stderr));
 
-    s.put("none", ValRef::None);
-    s.put("false", ValRef::Bool(false));
-    s.put("true", ValRef::Bool(true));
+    s = s.put("none", ValRef::None);
+    s = s.put("false", ValRef::Bool(false));
+    s = s.put("true", ValRef::Bool(true));
 
-    s.put_func("print", Rc::new(lib_print));
+    s = s.put_func("print", Rc::new(lib_print));
 
-    s.put_func("not", Rc::new(lib_not));
-    s.put_func("mod", Rc::new(lib_mod));
-    s.put_func("+", Rc::new(lib_add));
-    s.put_func("-", Rc::new(lib_sub));
-    s.put_func("*", Rc::new(lib_mul));
-    s.put_func("/", Rc::new(lib_div));
-    s.put_func("==", Rc::new(lib_equals));
-    s.put_func("!=", Rc::new(lib_nequals));
-    s.put_func("<=", Rc::new(lib_lteq));
-    s.put_func("<", Rc::new(lib_lt));
-    s.put_func(">=", Rc::new(lib_gteq));
-    s.put_func(">", Rc::new(lib_gt));
-    s.put_func("||", Rc::new(lib_or));
-    s.put_func("&&", Rc::new(lib_and));
-    s.put_func("??", Rc::new(lib_first));
+    s = s.put_func("not", Rc::new(lib_not));
+    s = s.put_func("mod", Rc::new(lib_mod));
+    s = s.put_func("+", Rc::new(lib_add));
+    s = s.put_func("-", Rc::new(lib_sub));
+    s = s.put_func("*", Rc::new(lib_mul));
+    s = s.put_func("/", Rc::new(lib_div));
+    s = s.put_func("==", Rc::new(lib_equals));
+    s = s.put_func("!=", Rc::new(lib_nequals));
+    s = s.put_func("<=", Rc::new(lib_lteq));
+    s = s.put_func("<", Rc::new(lib_lt));
+    s = s.put_func(">=", Rc::new(lib_gteq));
+    s = s.put_func(">", Rc::new(lib_gt));
+    s = s.put_func("||", Rc::new(lib_or));
+    s = s.put_func("&&", Rc::new(lib_and));
+    s = s.put_func("??", Rc::new(lib_first));
 
-    s.put_func("def", Rc::new(lib_def));
-    s.put_func("func", Rc::new(lib_func));
-    s.put_func("set", Rc::new(lib_set));
-    s.put_func("mutate", Rc::new(lib_mutate));
+    s = s.put_func("def", Rc::new(lib_def));
+    s = s.put_func("func", Rc::new(lib_func));
+    s = s.put_func("set", Rc::new(lib_set));
+    s = s.put_func("mutate", Rc::new(lib_mutate));
 
-    s.put_func("if", Rc::new(lib_if));
-    s.put_func("match", Rc::new(lib_match));
-    s.put_func("while", Rc::new(lib_while));
-    s.put_func("do", Rc::new(lib_do));
+    s = s.put_func("if", Rc::new(lib_if));
+    s = s.put_func("match", Rc::new(lib_match));
+    s = s.put_func("while", Rc::new(lib_while));
+    s = s.put_func("do", Rc::new(lib_do));
 
-    s.put_func("bind", Rc::new(lib_bind));
-    s.put_func("with", Rc::new(lib_with));
-    s.put_func("read", Rc::new(lib_read));
-    s.put_func("write", Rc::new(lib_write));
-    s.put_func("seek", Rc::new(lib_seek));
+    s = s.put_func("bind", Rc::new(lib_bind));
+    s = s.put_func("with", Rc::new(lib_with));
+    s = s.put_func("read", Rc::new(lib_read));
+    s = s.put_func("write", Rc::new(lib_write));
+    s = s.put_func("seek", Rc::new(lib_seek));
 
-    s.put_func("error", Rc::new(lib_error));
-    s.put_func("try", Rc::new(lib_try));
+    s = s.put_func("error", Rc::new(lib_error));
+    s = s.put_func("try", Rc::new(lib_try));
 
-    s.put_func("number", Rc::new(lib_number));
-    s.put_func("bool", Rc::new(lib_bool));
-    s.put_func("string", Rc::new(lib_string));
+    s = s.put_func("number", Rc::new(lib_number));
+    s = s.put_func("bool", Rc::new(lib_bool));
+    s = s.put_func("string", Rc::new(lib_string));
 
-    s.put_func("lambda", Rc::new(lib_lambda));
+    s = s.put_func("lambda", Rc::new(lib_lambda));
 
-    s.put_func("lazy", Rc::new(lib_lazy));
+    s = s.put_func("lazy", Rc::new(lib_lazy));
 
-    s.put_func("list", Rc::new(lib_list));
-    s.put_func("list-push", Rc::new(lib_list_push));
-    s.put_func("list-pop", Rc::new(lib_list_pop));
-    s.put_func("list-insert", Rc::new(lib_list_insert));
-    s.put_func("list-remove", Rc::new(lib_list_remove));
-    s.put_func("list-map", Rc::new(lib_list_map));
-    s.put_func("list-last", Rc::new(lib_list_last));
-    s.put_func("list-for", Rc::new(lib_list_for));
-    s.put_func("list-reduce", Rc::new(lib_list_reduce));
-    s.put_func("list-len", Rc::new(lib_list_len));
+    s = s.put_func("list", Rc::new(lib_list));
+    s = s.put_func("list-push", Rc::new(lib_list_push));
+    s = s.put_func("list-pop", Rc::new(lib_list_pop));
+    s = s.put_func("list-insert", Rc::new(lib_list_insert));
+    s = s.put_func("list-remove", Rc::new(lib_list_remove));
+    s = s.put_func("list-map", Rc::new(lib_list_map));
+    s = s.put_func("list-last", Rc::new(lib_list_last));
+    s = s.put_func("list-for", Rc::new(lib_list_for));
+    s = s.put_func("list-reduce", Rc::new(lib_list_reduce));
+    s = s.put_func("list-len", Rc::new(lib_list_len));
 
-    s.put_func("dict", Rc::new(lib_dict));
-    s.put_func("dict-set", Rc::new(lib_dict_set));
-    s.put_func("dict-mutate", Rc::new(lib_dict_mutate));
+    s = s.put_func("dict", Rc::new(lib_dict));
+    s = s.put_func("dict-set", Rc::new(lib_dict_set));
+    s = s.put_func("dict-mutate", Rc::new(lib_dict_mutate));
+
+    s
 }
 
 pub struct WritePort {
@@ -1670,7 +1661,7 @@ impl PortVal for ReadPort {
     }
 }
 
-pub fn init(scope: &Rc<RefCell<Scope>>) {
+pub fn init(scope: Scope) -> Scope {
     init_with_stdio(
         scope,
         StdIo {

@@ -2,7 +2,13 @@ OSYRISLIBS = src/stdlib.rs
 DOCTESTS = $(patsubst src/%.rs,tests/doctest-%.os,$(OSYRISLIBS))
 DOCS = $(patsubst src/%.rs,docs/%.md,$(OSYRISLIBS))
 
-all: $(DOCTESTS) $(DOCS) check
+.PHONY: all
+all: osyris
+
+.PHONY: osyris
+osyris:
+	cargo build --release
+	cp target/release/osyris .
 
 tests/doctest-%.os: src/%.rs
 	./scripts/doctest.py $< $@
@@ -16,3 +22,7 @@ check: $(DOCTESTS)
 
 .PHONY: doc
 doc: $(DOCS)
+
+.PHONY: clean
+clean:
+	rm -rf target osyris
