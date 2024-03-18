@@ -513,6 +513,7 @@ fn lib_func(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let val = ValRef::Lambda(Rc::new(eval::LambdaVal {
         args: argnames,
         body: block,
+        scope: scope.clone(),
     }));
     scope = scope.insert(name.as_ref().clone(), val);
 
@@ -529,11 +530,6 @@ Examples:
 x -> 100
 (set 'x 50) -> none
 x -> 50
-
-({
-    (set 'x 3)
-})
-x -> 3
 */
 fn lib_set(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
@@ -659,7 +655,7 @@ Examples:
         [num + 1]}
 ) -> 100
 */
-fn lib_match(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
+fn lib_match(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     while args.has_next() {
@@ -670,56 +666,14 @@ fn lib_match(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
         }
 
         let val;
-        (val, scope) = eval::eval(&block[0], scope)?;
+        (val, _) = eval::eval(&block[0], scope.clone())?;
         if val.to_bool() {
-            return eval::eval_multiple(&block[1..], scope);
+            let (res, _) = eval::eval_multiple(&block[1..], scope.clone())?;
+            return Ok((res, scope));
         }
     }
 
     Ok((ValRef::None, scope))
-}
-
-/*
-@(while condition:func body:func?) -> any
-
-Call the condition function. If it returns true, call the body
-if it exists, then loop. If it returns false, return the last thing
-the body function returned, or none.
-
-Examples:
-(def 'index 0)
-(def 'sum 1)
-(while {[index < 4]} {
-    (set 'sum [sum * 2])
-    (set 'index [index + 1])
-    sum
-}) -> 16
-
-sum -> 16
-index -> 4
-
-(while {false}) -> none
-*/
-fn lib_while(mut args: Vec<ValRef>, mut scope: Scope) -> FuncResult {
-    let mut args = args.drain(0..);
-
-    let cond = args.next_val()?;
-    let body = args.next();
-    args.done()?;
-
-    let mut retval: ValRef = ValRef::None;
-    loop {
-        let val;
-        (val, scope) = eval::call(&cond, vec![], scope)?;
-        if !val.to_bool() {
-            return Ok((retval, scope));
-        }
-
-        if let Some(body) = &body {
-            drop(retval);
-            (retval, scope) = eval::call(body, vec![], scope)?;
-        }
-    }
 }
 
 /*
@@ -742,72 +696,6 @@ fn lib_do(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     } else {
         Ok((ValRef::None, scope))
     }
-}
-
-/*
-@(bind (key:string value:any)* body:func) -> binding
-
-Create a binding. When the binding is called, its body function will be called
-with the bound values in its scope.
-
-Examples:
-(def 'f (bind 'x 10 'y 20 {
-    [x + y]
-}))
-(f) -> 30
-
-; A more useful example:
-(func 'create-function {
-    (def 'x 10)
-    (def 'y 20)
-    (bind 'x x 'y y {
-        [x + y]
-    })
-})
-(def 'f (create-function))
-(f) -> 30
-*/
-fn lib_bind(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
-    let mut args = args.drain(0..);
-
-    let mut map: HashMap<BString, ValRef> = HashMap::new();
-    while args.len() >= 2 {
-        let key = args.next_val()?.get_string()?;
-        let val = args.next_val()?;
-        map.insert(key.as_ref().clone(), val);
-    }
-
-    let func = args.next_val()?;
-    args.done()?;
-
-    Ok((ValRef::Binding(Rc::new(map), Rc::new(func)), scope))
-}
-
-/*
-@(with (key:string value:any) body:func) -> any
-
-Call a function with some variables in its scope.
-
-Examples:
-(with 'num [[100 * 3] + [10 * 2]] {
-    [num + 5]
-}) -> 325
-*/
-fn lib_with(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
-    let mut args = args.drain(0..);
-
-    let mut subscope = scope.subscope();
-    while args.len() > 1 {
-        let key = args.next_val()?.get_string()?;
-        let val = args.next_val()?;
-
-        subscope = subscope.insert(key.as_ref().clone(), val);
-    }
-
-    let func = args.next_val()?;
-    args.done()?;
-
-    eval::call(&func, vec![], subscope)
 }
 
 /*
@@ -1101,7 +989,8 @@ fn lib_lambda(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     Ok((
         ValRef::Lambda(Rc::new(eval::LambdaVal {
             args: argnames,
-            body: block,
+            body: block.clone(),
+            scope: scope.clone(),
         })),
         scope,
     ))
@@ -1578,11 +1467,8 @@ pub fn init_with_stdio(mut s: Scope, stdio: StdIo) -> Scope {
 
     s = s.put_func("if", Rc::new(lib_if));
     s = s.put_func("match", Rc::new(lib_match));
-    s = s.put_func("while", Rc::new(lib_while));
     s = s.put_func("do", Rc::new(lib_do));
 
-    s = s.put_func("bind", Rc::new(lib_bind));
-    s = s.put_func("with", Rc::new(lib_with));
     s = s.put_func("read", Rc::new(lib_read));
     s = s.put_func("write", Rc::new(lib_write));
     s = s.put_func("seek", Rc::new(lib_seek));

@@ -60,18 +60,6 @@ where
             name = format!("v{:p}", l.as_ref());
             writeln!(w, "{} [label=\"lambda rc={}\"]", name, Rc::strong_count(l))?;
         }
-        ValRef::Binding(b, func) => {
-            name = parent;
-            writeln!(w, "{} [label=\"binding\"]", name)?;
-
-            for (idx, (key, val)) in b.as_ref().iter().enumerate() {
-                let n = write_val(w, val, format!("{}v{}", name, idx))?;
-                writeln!(w, "{} -> {} [label={:?}]", name, n, key)?;
-            }
-
-            let n = write_val(w, func.as_ref(), format!("{}f", name))?;
-            writeln!(w, "{} -> {} [label=\"::func\"]", name, n)?;
-        }
         ValRef::Lazy(l) => {
             name = format!("v{:p}", l.as_ref());
             writeln!(w, "{} [label=\"lazy rc={}\"]", name, Rc::strong_count(l))?;
@@ -89,6 +77,10 @@ where
         ValRef::Port(p) => {
             name = format!("v{:p}", p.as_ref());
             writeln!(w, "{} [label=\"port rc={}\"]", name, Rc::strong_count(p))?;
+        }
+        ValRef::Scope(s) => {
+            name = format!("v{:p}", s.m.as_ref());
+            writeln!(w, "{} [label=\"scope rc={}\"]", name, Rc::strong_count(&s.m))?;
         }
     }
 

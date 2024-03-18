@@ -158,10 +158,6 @@
 	(asserteq x 100)
 	(asserteq (set 'x 50) none)
 	(asserteq x 50)
-	({
-		(set 'x 3)
-	})
-	(asserteq x 3)
 })
 
 (test-case 'mutate {
@@ -195,46 +191,11 @@
 	) 100)
 })
 
-(test-case 'while {
-	(def 'index 0)
-	(def 'sum 1)
-	(asserteq (while {[index < 4]} {
-		(set 'sum [sum * 2])
-		(set 'index [index + 1])
-		sum
-	}) 16)
-	(asserteq sum 16)
-	(asserteq index 4)
-	(asserteq (while {false}) none)
-})
-
 (test-case 'do {
 	(asserteq (do 1 2 3) 3)
 	(asserteq (do (+ 1 3 5) (* 2 4) (- 9 1)) 8)
 	(asserteq (do) none)
 	(asserteq (do (def 'x 10) [x + 5]) 15)
-})
-
-(test-case 'bind {
-	(def 'f (bind 'x 10 'y 20 {
-		[x + y]
-	}))
-	(asserteq (f) 30)
-	(func 'create-function {
-		(def 'x 10)
-		(def 'y 20)
-		(bind 'x x 'y y {
-			[x + y]
-		})
-	})
-	(def 'f (create-function))
-	(asserteq (f) 30)
-})
-
-(test-case 'with {
-	(asserteq (with 'num [[100 * 3] + [10 * 2]] {
-		[num + 5]
-	}) 325)
 })
 
 (test-case 'try {

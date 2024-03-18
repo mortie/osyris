@@ -1,7 +1,7 @@
 (def 'fib (lambda 'x {
 	(if [x <= 1]
 		{1}
-		{(+ (fib [x - 1]) (fib [x - 2]))})
+		{[(self [x - 1]) + (self [x - 2])]})
 }))
 
 (test-case 'fib {

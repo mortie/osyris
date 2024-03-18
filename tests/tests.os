@@ -1,13 +1,3 @@
-(def 'run (lambda 'name {
-	(print "Test:" name)
-	(import name)
-}))
-
-(def 'test-case (lambda 'name 'f {
-	(print "\tCase:" name)
-	((lambda f))
-}))
-
 (def 'assert (lambda 'x {
 	(if (not x) {
 		(error "Assertion failed")
@@ -18,6 +8,16 @@
 	(if [a != b] {
 		(error "Assertion failed: Expected" b "but got" a)
 	})
+}))
+
+(def 'test-case (lambda 'name 'f {
+	(print "\tCase:" name)
+	(caller-scope f)
+}))
+
+(def 'run (lambda 'name {
+	(print "Test:" name)
+	(import name)
 }))
 
 (run "doctest-stdlib.os")

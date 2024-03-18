@@ -44,6 +44,7 @@ pub type FuncVal = dyn Fn(Vec<ValRef>, Scope) -> FuncResult;
 pub struct LambdaVal {
     pub args: Vec<BString>,
     pub body: Rc<Vec<ast::Expression>>,
+    pub scope: Scope,
 }
 
 pub trait PortVal {
@@ -69,16 +70,16 @@ pub enum ValRef {
     Number(f64),
     Bool(bool),
     String(Rc<BString>),
-    Block(Rc<Vec<ast::Expression>>),
     List(Rc<RefCell<Vec<ValRef>>>),
     Dict(Rc<RefCell<DictVal>>),
     Func(Rc<FuncVal>),
     Lambda(Rc<LambdaVal>),
-    Binding(Rc<HashMap<BString, ValRef>>, Rc<ValRef>),
+    Block(Rc<Vec<ast::Expression>>),
     Lazy(Rc<ValRef>),
     ProtectedLazy(Rc<ValRef>),
     Native(Rc<dyn Any>),
     Port(Rc<RefCell<dyn PortVal>>),
+    Scope(Scope),
 }
 
 impl ValRef {
@@ -122,7 +123,6 @@ impl ValRef {
             (ValRef::Number(a), ValRef::Number(b)) => a == b,
             (ValRef::Bool(a), ValRef::Bool(b)) => a == b,
             (ValRef::String(a), ValRef::String(b)) => a == b,
-            (ValRef::Block(a), ValRef::Block(b)) => Rc::ptr_eq(a, b),
             (ValRef::List(a), ValRef::List(b)) => {
                 let (a, b) = (a.borrow(), b.borrow());
                 if a.len() != b.len() {
@@ -159,9 +159,7 @@ impl ValRef {
             }
             (ValRef::Func(a), ValRef::Func(b)) => Rc::ptr_eq(a, b),
             (ValRef::Lambda(a), ValRef::Lambda(b)) => Rc::ptr_eq(a, b),
-            (ValRef::Binding(a1, a2), ValRef::Binding(b1, b2)) => {
-                Rc::ptr_eq(a1, b1) && Rc::ptr_eq(a2, b2)
-            }
+            (ValRef::Block(a), ValRef::Block(b)) => Rc::ptr_eq(a, b),
             (ValRef::Lazy(a), ValRef::Lazy(b)) => Rc::ptr_eq(a, b),
             (ValRef::ProtectedLazy(a), ValRef::ProtectedLazy(b)) => Rc::ptr_eq(a, b),
             (ValRef::Native(a), ValRef::Native(b)) => Rc::ptr_eq(a, b),
@@ -226,16 +224,16 @@ impl Clone for ValRef {
             Self::Number(num) => Self::Number(*num),
             Self::Bool(b) => Self::Bool(*b),
             Self::String(s) => Self::String(s.clone()),
-            Self::Block(q) => Self::Block(q.clone()),
             Self::List(l) => Self::List(l.clone()),
             Self::Dict(m) => Self::Dict(m.clone()),
             Self::Func(f) => Self::Func(f.clone()),
             Self::Lambda(l) => Self::Lambda(l.clone()),
-            Self::Binding(l, s) => Self::Binding(l.clone(), s.clone()),
+            Self::Block(b) => Self::Block(b.clone()),
             Self::Lazy(val) => Self::Lazy(val.clone()),
             Self::ProtectedLazy(val) => Self::ProtectedLazy(val.clone()),
             Self::Native(n) => Self::Native(n.clone()),
             Self::Port(p) => Self::Port(p.clone()),
+            Self::Scope(s) => Self::Scope(s.clone()),
         }
     }
 }
@@ -247,7 +245,6 @@ impl fmt::Display for ValRef {
             Self::Number(num) => write!(f, "{}", num),
             Self::Bool(b) => write!(f, "{}", b),
             Self::String(s) => write!(f, "{:?}", s),
-            Self::Block(q) => write!(f, "{:?}", q),
             Self::Dict(m) => {
                 write!(f, "{{")?;
                 let mut first = true;
@@ -273,14 +270,13 @@ impl fmt::Display for ValRef {
                 write!(f, "]")
             }
             Self::Func(func) => write!(f, "(func {:p})", func.as_ref()),
+            Self::Block(b) => write!(f, "{:?}", b),
             Self::Lambda(l) => write!(f, "(lambda {:?} {:?})", l.args, l.body),
-            Self::Binding(b, func) => {
-                write!(f, "(binding {:?} {:?})", *b, *func)
-            }
             Self::Lazy(val) => write!(f, "(lazy {})", val),
             Self::ProtectedLazy(val) => write!(f, "(protected-lazy {})", val),
             Self::Native(n) => write!(f, "(native {:p})", n.as_ref()),
             Self::Port(p) => write!(f, "(port {:p})", p.as_ref()),
+            Self::Scope(s) => write!(f, "(scope {:p})", s.m.as_ref()),
         }
     }
 }
@@ -370,6 +366,7 @@ impl ScopeImpl {
     }
 }
 
+#[derive(Clone)]
 pub struct Scope {
     pub m: Rc<ScopeImpl>,
 }
@@ -470,13 +467,16 @@ impl Default for Scope {
 }
 
 pub fn call(func: &ValRef, mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
-    match &func {
+    match func {
         ValRef::Func(func) => func(args, scope),
-        ValRef::Block(exprs) => eval_multiple(&exprs[..], scope),
+        ValRef::Block(b) => {
+            let (retval, _) = eval_multiple(&b[..], scope.subscope())?;
+            Ok((retval, scope))
+        },
         ValRef::Lambda(l) => {
             let mut args = args.drain(0..);
 
-            let mut subscope = scope.subscope();
+            let mut subscope = l.scope.subscope();
             for name in &l.args {
                 let val = match args.next() {
                     Some(val) => val,
@@ -486,16 +486,12 @@ pub fn call(func: &ValRef, mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
                 subscope = subscope.insert(name.clone(), val);
             }
 
+            subscope = subscope.insert(BString::from_str("self"), func.clone());
+            subscope = subscope.insert(
+                BString::from_str("caller-scope"), ValRef::Scope(scope.clone()));
+
             let (retval, _) = eval_multiple(&l.body[..], subscope)?;
             Ok((retval, scope))
-        }
-        ValRef::Binding(b, func) => {
-            let mut subscope = scope.subscope();
-            for (key, val) in b.as_ref() {
-                subscope = subscope.insert(key.clone(), val.clone());
-            }
-
-            call(func.as_ref(), args, subscope)
         }
         ValRef::List(list) => {
             if args.len() != 1 {
@@ -534,6 +530,18 @@ pub fn call(func: &ValRef, mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
                 None => Ok((ValRef::None, scope)),
             }
         }
+        ValRef::Scope(s) => {
+            if args.len() == 0 {
+                return Err(StackTrace::from_str(
+                    "Scoped execution requires arguments",
+                ));
+            }
+
+            let a = args.drain(1..).collect();
+            let f = &args[0];
+            let (res, _) = call(f, a, s.clone())?;
+            Ok((res, scope))
+        }
         _ => Err(StackTrace::from_string(format!(
             "Attempt to call non-function {}",
             func
@@ -561,10 +569,8 @@ pub fn eval_call(exprs: &[ast::Expression], mut scope: Scope) -> FuncResult {
 fn resolve_lazy(lazy: &ValRef, scope: Scope) -> FuncResult {
     match lazy {
         ValRef::Func(func) => func(Vec::new(), scope),
-        ValRef::Lambda(l) => {
-            eval_multiple(&l.body[..], scope.subscope())
-        }
-        ValRef::Block(exprs) => eval_multiple(exprs, scope),
+        ValRef::Lambda(l) => eval_multiple(&l.body[..], l.scope.subscope()),
+        ValRef::Block(b) => eval_multiple(&b[..], scope.subscope()),
         _ => Ok((lazy.clone(), scope)),
     }
 }
