@@ -177,13 +177,13 @@
 	(asserteq (if false {10}) none)
 })
 
-(test-case 'match {
+(test-case 'case {
 	(def 'x 10)
-	(asserteq (match
+	(asserteq (case
 		{[x == 20] "x is 20"}
 		{[x == 10] "x is 10"}
 	) "x is 10")
-	(asserteq (match
+	(asserteq (case
 		{false 50}
 		{true
 			(def 'num 99)

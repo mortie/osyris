@@ -636,26 +636,26 @@ fn lib_if(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
 }
 
 /*
-@(match (case:block)) -> any
+@(case (case:block)*) -> any
 
 Each argument should be a "block", where the first expression is a condition,
 and the subsequent expressions form a "body".
 
 Examples:
 (def 'x 10)
-(match
+(case
     {[x == 20] "x is 20"}
     {[x == 10] "x is 10"}
 ) -> "x is 10"
 
-(match
+(case
     {false 50}
     {true
         (def 'num 99)
         [num + 1]}
 ) -> 100
 */
-fn lib_match(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
+fn lib_case(mut args: Vec<ValRef>, scope: Scope) -> FuncResult {
     let mut args = args.drain(0..);
 
     while args.has_next() {
@@ -1466,7 +1466,7 @@ pub fn init_with_stdio(mut s: Scope, stdio: StdIo) -> Scope {
     s = s.put_func("mutate", Rc::new(lib_mutate));
 
     s = s.put_func("if", Rc::new(lib_if));
-    s = s.put_func("match", Rc::new(lib_match));
+    s = s.put_func("case", Rc::new(lib_case));
     s = s.put_func("do", Rc::new(lib_do));
 
     s = s.put_func("read", Rc::new(lib_read));
